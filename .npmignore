@@ -1,0 +1,54 @@
+# Source files (users get compiled dist/)
+src/
+test/
+example/
+
+# Configuration files
+.eslintrc.json
+.gitlab-ci.yml
+.github/
+vitest.config.ts
+tsconfig.json
+
+# Documentation (except README and LICENSE)
+ARCHITECTURE.md
+CRASH_RECOVERY_EXPLAINED.md
+GITHUB_ACTIONS_SETUP.md
+GITHUB_TOKEN_EXPLAINED.md
+GITLAB_CI_SETUP.md
+NPM_PUBLISHING_GUIDE.md
+TEST_SUITE.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+
+# Build artifacts
+*.tgz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Job queue files (from examples)
+jobs.log
+example-jobs.log
+example-jobs-dead-letter.log
+test-jobs.log
+test-jobs-dead-letter.log
