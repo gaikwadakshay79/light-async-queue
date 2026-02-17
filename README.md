@@ -5,7 +5,7 @@
 [![CI](https://github.com/gaikwadakshay79/light-async-queue/actions/workflows/ci.yml/badge.svg)](https://github.com/gaikwadakshay79/light-async-queue/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/light-async-queue.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 
 A production-ready, Redis-free async job queue for Node.js with TypeScript. Designed for single-node reliability with file-based persistence, worker process isolation, and crash recovery.
 
@@ -29,39 +29,22 @@ npm install light-async-queue
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Queue API                            │
-│  (add jobs, process, getStats, shutdown)                    │
-└────────────────┬────────────────────────────────────────────┘
-                 │
-    ┌────────────┴────────────┐
-    │                         │
-┌───▼────────┐        ┌──────▼──────┐
-│ Scheduler  │        │   Storage   │
-│ (200ms)    │◄───────┤  (Memory/   │
-│            │        │   File)     │
-└─────┬──────┘        └──────┬──────┘
-      │                      │
-      │ job-ready            │ persist
-      │                      │
-┌─────▼──────────────────────▼──────┐
-│         Worker Pool                │
-│  ┌──────┐  ┌──────┐  ┌──────┐    │
-│  │Worker│  │Worker│  │Worker│    │
-│  │ (CP) │  │ (CP) │  │ (CP) │    │
-│  └──────┘  └──────┘  └──────┘    │
-└────────────────┬───────────────────┘
-                 │
-                 │ on failure
-                 │
-         ┌───────▼────────┐
-         │ Dead Letter    │
-         │ Queue (DLQ)    │
-         └────────────────┘
+![Architecture Diagram](./architecture.png)
 
-CP = Child Process (isolated execution)
-```
+The queue follows a producer-consumer pattern with the following components:
+
+- **Queue API**: Main interface for adding jobs and managing the queue
+- **Scheduler**: Polls for ready jobs every 200ms and dispatches to workers
+- **Storage Layer**: Pluggable storage (Memory or File-based) for job persistence
+- **Worker Pool**: Manages concurrent job execution in isolated child processes
+- **Dead Letter Queue (DLQ)**: Stores jobs that exceeded max retry attempts
+
+**Key Features:**
+
+- Jobs execute in isolated child processes for crash resilience
+- File-based storage provides automatic crash recovery
+- Exponential backoff retry strategy prevents overwhelming failing services
+- Graceful shutdown ensures no job loss during deployment
 
 ## 🚀 Quick Start
 
@@ -368,7 +351,7 @@ npm run build
 npm run example
 ```
 
-**Test Results:** ✅ 25 tests passing across 4 test suites (powered by Vitest)
+**Test Results:** ✅ 42 tests passing across 4 test suites (powered by Vitest)
 
 See [TEST_SUITE.md](./TEST_SUITE.md) for detailed test documentation.
 
