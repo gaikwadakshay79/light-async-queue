@@ -50,7 +50,7 @@ process.on('message', async (message: WorkerMessage) => {
     // This is sent from the parent during worker initialization
     try {
       const processorCode = message.code;
-      // eslint-disable-next-line no-eval
+       
       processorFn = eval(`(${processorCode})`);
     } catch (error) {
       console.error('Failed to set processor function:', error);

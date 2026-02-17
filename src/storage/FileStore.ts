@@ -50,7 +50,7 @@ export class FileStore implements StorageInterface {
     const dir = dirname(filePath);
     try {
       await fs.mkdir(dir, { recursive: true });
-    } catch (error) {
+    } catch {
       // Directory might already exist
     }
   }

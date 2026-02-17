@@ -11,12 +11,12 @@ describe('FileStore', () => {
   async function cleanup() {
     try {
       await unlink(testFilePath);
-    } catch (error) {
+    } catch {
       // File doesn't exist - ignore
     }
     try {
       await unlink(testDLQPath);
-    } catch (error) {
+    } catch {
       // File doesn't exist - ignore
     }
   }
