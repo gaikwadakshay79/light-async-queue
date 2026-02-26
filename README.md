@@ -49,17 +49,17 @@ The queue follows a producer-consumer pattern with the following components:
 ## 🚀 Quick Start
 
 ```typescript
-import { Queue } from "light-async-queue";
+import { Queue, StorageType, BackoffStrategyType } from "light-async-queue";
 
 // Create a queue
 const queue = new Queue({
-  storage: "file",
+  storage: StorageType.FILE,
   filePath: "./jobs.log",
   concurrency: 3,
   retry: {
     maxAttempts: 5,
     backoff: {
-      type: "exponential",
+      type: BackoffStrategyType.EXPONENTIAL,
       delay: 1000, // 1 second base delay
     },
   },
@@ -91,14 +91,16 @@ Create a new queue instance.
 **Config Options:**
 
 ```typescript
+import { StorageType, BackoffStrategyType } from "light-async-queue";
+
 interface QueueConfig {
-  storage: "memory" | "file";
-  filePath?: string; // Required if storage is 'file'
+  storage: StorageType;
+  filePath?: string; // Required if storage is StorageType.FILE
   concurrency: number; // Max parallel jobs
   retry: {
     maxAttempts: number;
     backoff: {
-      type: "exponential";
+      type: BackoffStrategyType;
       delay: number; // Base delay in ms
     };
   };
@@ -190,8 +192,10 @@ After `maxAttempts`, jobs move to the Dead Letter Queue.
 Fast, in-memory storage for development:
 
 ```typescript
+import { Queue, StorageType } from "light-async-queue";
+
 const queue = new Queue({
-  storage: "memory",
+  storage: StorageType.MEMORY,
   concurrency: 5,
   retry: {
     /* ... */
@@ -204,8 +208,10 @@ const queue = new Queue({
 Persistent, crash-recoverable storage for production:
 
 ```typescript
+import { Queue, StorageType } from "light-async-queue";
+
 const queue = new Queue({
-  storage: "file",
+  storage: StorageType.FILE,
   filePath: "./jobs.log",
   concurrency: 5,
   retry: {
@@ -281,16 +287,16 @@ Perfect for:
 ## 🔧 Advanced Example
 
 ```typescript
-import { Queue } from "light-async-queue";
+import { Queue, StorageType, BackoffStrategyType } from "light-async-queue";
 
 const queue = new Queue({
-  storage: "file",
+  storage: StorageType.FILE,
   filePath: "./production-jobs.log",
   concurrency: 10,
   retry: {
     maxAttempts: 3,
     backoff: {
-      type: "exponential",
+      type: BackoffStrategyType.EXPONENTIAL,
       delay: 2000,
     },
   },

@@ -7,17 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] - 2026-02-27
 
-### Added
-
-- New features and enhancements
-
-### Changed
-
-- Improvements and updates
-
 ### Fixed
 
-- Bug fixes and corrections
+- **Updated README documentation** to use constant enums (`StorageType`, `BackoffStrategyType`) instead of hardcoded string literals, ensuring consistency with the codebase
 
 ## [1.0.1] - 2026-02-17
 
