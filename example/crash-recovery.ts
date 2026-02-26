@@ -1,4 +1,4 @@
-import { Queue } from '../src/index.js';
+import { Queue, StorageType, BackoffStrategyType } from '../src/index.js';
 
 /**
  * Crash recovery demonstration
@@ -13,13 +13,13 @@ async function main() {
   console.log('=== Crash Recovery Example ===\n');
 
   const queue = new Queue({
-    storage: 'file',
+    storage: StorageType.FILE,
     filePath: './crash-recovery-jobs.log',
     concurrency: 2,
     retry: {
       maxAttempts: 3,
       backoff: {
-        type: 'exponential',
+        type: BackoffStrategyType.EXPONENTIAL,
         delay: 1000,
       },
     },

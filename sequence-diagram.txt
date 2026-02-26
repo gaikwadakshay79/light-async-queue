@@ -1,0 +1,228 @@
+title light-async-queue System Sequence Diagram
+
+// Participants
+participant Client
+participant Queue
+participant Storage
+participant Scheduler
+participant Backoff
+participant Worker Pool
+participant Child Process
+participant DeadLetterQueue
+
+// ================== INITIALIZATION FLOW ==================
+note over Client,DeadLetterQueue: Initialization Phase
+Client->Queue: new Queue(config)
+activate Queue
+Queue->Storage: Initialize Storage (File/Memory)
+activate Storage
+Storage-->Queue: Storage Ready
+deactivate Storage
+Queue->Scheduler: new Scheduler(storage)
+activate Scheduler
+Scheduler->Storage: Connect to Storage
+Storage-->Scheduler: Connected
+deactivate Scheduler
+Queue->Backoff: new Backoff(backoffConfig)
+activate Backoff
+Backoff-->Queue: Backoff Utils Ready
+deactivate Backoff
+Queue-->Client: Queue Instance Created
+deactivate Queue
+
+space 2
+
+// ================== JOB REGISTRATION PHASE ==================
+note over Client,DeadLetterQueue: Register Job Processor
+Client->Queue: queue.process(processorFunction)
+activate Queue
+Queue->Queue: this.processor = processorFunction
+Queue-->Client: Processor Registered
+deactivate Queue
+
+space 2
+
+// ================== START QUEUE FLOW ==================
+note over Client,DeadLetterQueue: Start Queue Processing
+Client->Queue: await queue.start()
+activate Queue
+Queue->Scheduler: scheduler.start()
+activate Scheduler
+Scheduler->Scheduler: setInterval(tick, 200ms)
+Scheduler-->Queue: Scheduler Started
+deactivate Scheduler
+Scheduler->>Scheduler: Polling every 200ms
+Queue->Queue: Create Worker Pool (concurrency workers)
+loop Create Workers
+  Queue->Worker Pool: new Worker(processor)
+  activate Worker Pool
+  Worker Pool->Worker Pool: Initialize Worker
+  Worker Pool->>Child Process: fork(childProcessor.js)
+  activate Child Process
+  Child Process-->Worker Pool: ready signal
+  Worker Pool->Worker Pool: Send processor function
+  Child Process-->Worker Pool: processor received
+  Worker Pool-->Queue: Worker Ready
+  deactivate Worker Pool
+end
+Queue-->Client: Queue Running
+deactivate Queue
+
+space 3
+
+// ================== ADD JOB FLOW ==================
+note over Client,DeadLetterQueue: Add New Job to Queue
+Client->Queue: await queue.add(jobPayload)
+activate Queue
+Queue->Queue: Create Job instance
+Queue->Storage: saveJob(job)
+activate Storage
+Storage->Storage: Persist job with PENDING status
+Storage-->Queue: Job Saved (id: job123)
+deactivate Storage
+Queue-->Client: Job Added (id: job123)
+deactivate Queue
+
+space 2
+
+// ================== SCHEDULER POLLING FLOW ==================
+note over Scheduler,Storage: Scheduler Polling Cycle (every 200ms)
+Scheduler->Scheduler: tick()
+activate Scheduler
+Scheduler->Storage: getPendingJobs(now)
+activate Storage
+Storage->Storage: Find jobs where nextRetry <= now
+Storage-->Scheduler: [job123, job456]
+deactivate Storage
+Scheduler->Scheduler: emit('job-ready', job123)
+Scheduler-->Queue: job-ready event
+deactivate Scheduler
+
+space 2
+
+// ================== JOB EXECUTION FLOW ==================
+note over Queue,Child Process: Execute Job in Worker
+Queue->Queue: handleJobReady(job123)
+activate Queue
+Queue->Storage: updateJob(job123, RUNNING)
+activate Storage
+Storage-->Queue: Updated
+deactivate Storage
+Queue->Worker Pool: assignJob(job123, worker)
+activate Worker Pool
+Worker Pool->Child Process: send({ type: 'job', data: job123 })
+activate Child Process
+Child Process->Child Process: Execute processor(job.payload)
+note over Child Process: Processing job...\nAwait async work
+Child Process->Child Process: Job Complete / Error?
+alt Job Success
+  Child Process-->Child Process: result = successValue
+  Child Process->Worker Pool: send({ type: 'complete', result })
+  Worker Pool-->Queue: Job Complete Event
+  Queue->Storage: updateJob(job123, COMPLETED)
+  activate Storage
+  Storage-->Queue: Saved
+  deactivate Storage
+  Queue-->Client: Job Completed with result
+else Job Failed
+  Child Process-->Child Process: error thrown
+  Child Process->Worker Pool: send({ type: 'error', error })
+  Worker Pool-->Queue: Job Error Event
+  Queue->Queue: Check retry count
+  alt Retries Remaining
+    Queue->Backoff: calculateNextRetry(attempt)
+    activate Backoff
+    Backoff->Backoff: Calculate delay with exponential backoff
+    Backoff-->Queue: nextRetryTime
+    deactivate Backoff
+    Queue->Storage: updateJob(job123, PENDING, nextRetryTime)
+    activate Storage
+    Storage-->Queue: Job rescheduled
+    deactivate Storage
+    note over Queue: Job will be picked up\nby scheduler at nextRetryTime
+  else Max Retries Exceeded
+    Queue->DeadLetterQueue: moveToDeadLetter(job123)
+    activate DeadLetterQueue
+    DeadLetterQueue->Storage: saveFailed(job123)
+    activate Storage
+    Storage-->DeadLetterQueue: Failed job saved
+    deactivate Storage
+    DeadLetterQueue-->Queue: Job moved to DLQ
+    deactivate DeadLetterQueue
+    Queue->Storage: updateJob(job123, FAILED)
+    activate Storage
+    Storage-->Queue: Updated
+    deactivate Storage
+    Client-->Client: Job permanently failed
+  end
+end
+deactivate Child Process
+Worker Pool->Worker Pool: Mark worker as READY
+deactivate Worker Pool
+deactivate Queue
+
+space 3
+
+// ================== GRACEFUL SHUTDOWN FLOW ==================
+note over Client,DeadLetterQueue: Graceful Shutdown
+Client->Queue: await queue.stop()
+activate Queue
+Queue->Scheduler: scheduler.stop()
+activate Scheduler
+Scheduler->Scheduler: clearInterval()
+Scheduler-->Queue: Scheduler Stopped (no more polling)
+deactivate Scheduler
+Queue->Queue: Wait for active jobs to complete
+loop For Each Active Job
+  Queue->Worker Pool: Get job status
+  activate Worker Pool
+  Worker Pool->Child Process: Check if running
+  activate Child Process
+  note over Child Process: Waiting for\nin-flight job to complete
+  Child Process-->Worker Pool: Job complete / timeout
+  deactivate Child Process
+  Worker Pool-->Queue: Worker available
+  deactivate Worker Pool
+end
+Queue->Storage: Final persistence sync
+activate Storage
+Storage-->Queue: Synced
+deactivate Storage
+Queue-->Client: Queue Stopped Gracefully
+deactivate Queue
+
+space 2
+
+// ================== REPROCESS FAILED JOBS FLOW ==================
+note over Client,DeadLetterQueue: Reprocess Dead Letter Queue Jobs
+Client->Queue: await queue.reprocessDlq()
+activate Queue
+Queue->DeadLetterQueue: getFailedJobs()
+activate DeadLetterQueue
+DeadLetterQueue->Storage: loadFailed()
+activate Storage
+Storage-->DeadLetterQueue: [failedJob1, failedJob2]
+deactivate Storage
+DeadLetterQueue-->Queue: Failed jobs list
+deactivate DeadLetterQueue
+note over Queue: Reset retry count\nto 0
+Queue->Storage: saveFailed -> PENDING
+activate Storage
+Storage-->Queue: Reprocessing...
+deactivate Storage
+note over Scheduler: Scheduler will pick them up\nin next polling cycle
+deactivate Queue
+
+space 2
+
+// ================== QUEUE STATISTICS FLOW ==================
+note over Client,Storage: Query Queue Statistics
+Client->Queue: queue.getStats()
+activate Queue
+Queue->Storage: getStats()
+activate Storage
+Storage->Storage: Count jobs by status
+Storage-->Queue: { pending, active, completed, failed, dlq }
+deactivate Storage
+Queue-->Client: Queue Statistics
+deactivate Queue

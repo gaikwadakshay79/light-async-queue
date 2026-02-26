@@ -1,4 +1,4 @@
-import { Queue } from '../src/index.js';
+import { Queue, StorageType, BackoffStrategyType } from '../src/index.js';
 
 /**
  * Basic usage example of light-queue
@@ -9,13 +9,13 @@ async function main() {
 
   // Create a queue with file-based storage
   const queue = new Queue({
-    storage: 'file',
+    storage: StorageType.FILE,
     filePath: './example-jobs.log',
     concurrency: 3,
     retry: {
       maxAttempts: 5,
       backoff: {
-        type: 'exponential',
+        type: BackoffStrategyType.EXPONENTIAL,
         delay: 1000, // 1 second base delay
       },
     },

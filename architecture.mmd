@@ -1,0 +1,65 @@
+---
+config:
+  layout: elk
+  look: classic
+  theme: neo
+---
+flowchart RL
+ subgraph ss1["Isolated Execution"]
+        ChildProcess["Child Process 1"]
+        Worker["Worker 1"]
+  end
+ subgraph ss2["Isolated Execution"]
+        ChildProcess2["Child Process 2"]
+        Worker2["Worker 2"]
+  end
+ subgraph ss3["Isolated Execution"]
+        ChildProcess3["Child Process 3"]
+        Worker3["Worker 3"]
+  end
+ subgraph WorkerPool["Worker"]
+        ss3
+        ss2
+        ss1
+  end
+ subgraph s2["React-Async-Queue"]
+        Queue["Queue<br>(Main Orchestrator)"]
+        Scheduler["Scheduler<br>(200ms Polling)"]
+        Backoff["Backoff<br>(Retry Calculator)"]
+        DLQ["Dead Letter Queue<br>(Failed Jobs)"]
+        Storage[("Storage<br>File / Memory")]
+  end
+    s2 -- get/create available worker (Create if worker count is less than concurrency) --> WorkerPool
+    Worker -- forks on init --> ChildProcess
+    Worker -- sends job via IPC --> ChildProcess
+    ChildProcess -- returns result via IPC --> Worker
+    Worker2 -- forks on init --> ChildProcess2
+    Worker2 -- sends job via IPC --> ChildProcess2
+    ChildProcess2 -- returns result via IPC --> Worker2
+    Worker3 -- forks on init --> ChildProcess3
+    Worker3 -- sends job via IPC --> ChildProcess3
+    ChildProcess3 -- returns result via IPC --> Worker3
+    WorkerPool -- returns Promise result --> s2
+    Queue -- creates  & listens to --> Scheduler
+    Queue L_Queue_Storage_0@-- reads/writes --> Storage
+    Scheduler -- polls every 200ms --> Storage
+    Scheduler -- "emits 'job-ready'" --> Queue
+    Queue -- on failure: calculate nextRunAt --> Backoff
+    Backoff -- returns delay --> Queue
+    Queue -- on max attempts: move job --> DLQ
+    DLQ -- wraps storage ops --> Storage
+    Storage -- stores: pending, processing, completed, failed --> Storage
+
+    ChildProcess@{ icon: "aws:arch-amazon-braket", pos: "b", h: 90}
+    Worker@{ icon: "aws:arch-category-robotics", pos: "b", h: 90}
+    ChildProcess2@{ icon: "aws:arch-amazon-braket", pos: "b", h: 90}
+    Worker2@{ icon: "aws:arch-category-robotics", pos: "b", h: 90}
+    ChildProcess3@{ icon: "aws:arch-amazon-braket", pos: "b", h: 90}
+    Worker3@{ icon: "aws:arch-category-robotics", pos: "b", h: 90}
+    Queue@{ icon: "aws:arch-amazon-elastic-inference", pos: "b", h: 160}
+    Scheduler@{ icon: "aws:arch-aws-b2b-data-interchange", pos: "b", h: 100}
+    Backoff@{ icon: "aws:arch-amazon-devops-guru", pos: "b", h: 80}
+    DLQ@{ icon: "aws:arch-amazon-aurora", pos: "b", h: 80}
+    Storage@{ icon: "azure:azure-fileshares", pos: "b", h: 130}
+
+    L_Queue_Storage_0@{ curve: linear }

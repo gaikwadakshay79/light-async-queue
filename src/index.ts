@@ -14,8 +14,15 @@ export { Job } from './queue/Job.js';
 export type {
   QueueConfig,
   JobData,
-  JobStatus,
   JobProcessor,
   RetryConfig,
   BackoffConfig,
+} from './types.js';
+export {
+  JobStatus,
+  BackoffStrategyType,
+  StorageType,
+  WorkerMessageType,
+  WorkerResponseType,
+  WorkerSignalType,
 } from './types.js';

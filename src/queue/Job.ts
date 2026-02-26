@@ -20,7 +20,7 @@ export class Job {
     this.payload = payload;
     this.attempts = 0;
     this.maxAttempts = maxAttempts;
-    this.status = 'pending';
+    this.status = JobStatus.PENDING;
     this.nextRunAt = nextRunAt ?? now;
     this.createdAt = now;
     this.updatedAt = now;
@@ -55,7 +55,7 @@ export class Job {
    * Mark job as processing
    */
   markProcessing(): void {
-    this.status = 'processing';
+    this.status = JobStatus.PROCESSING;
     this.updatedAt = Date.now();
   }
 
@@ -63,7 +63,7 @@ export class Job {
    * Mark job as completed
    */
   markCompleted(): void {
-    this.status = 'completed';
+    this.status = JobStatus.COMPLETED;
     this.updatedAt = Date.now();
   }
 
@@ -72,7 +72,7 @@ export class Job {
    */
   markFailed(nextRunAt?: number): void {
     this.attempts += 1;
-    this.status = this.attempts >= this.maxAttempts ? 'failed' : 'pending';
+    this.status = this.attempts >= this.maxAttempts ? JobStatus.FAILED : JobStatus.PENDING;
     if (nextRunAt !== undefined) {
       this.nextRunAt = nextRunAt;
     }
@@ -91,7 +91,7 @@ export class Job {
    */
   reset(): void {
     this.attempts = 0;
-    this.status = 'pending';
+    this.status = JobStatus.PENDING;
     this.nextRunAt = Date.now();
     this.updatedAt = Date.now();
   }

@@ -1,5 +1,5 @@
 import { fork, ChildProcess } from 'node:child_process';
-import { JobData, JobProcessor, WorkerResponse } from '../types.js';
+import { JobData, JobProcessor, WorkerResponse, WorkerMessageType, WorkerSignalType, WorkerResponseType } from '../types.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -35,7 +35,7 @@ export class Worker {
 
       // Handle ready signal from child
       const readyHandler = (message: { type: string }) => {
-        if (message.type === 'ready') {
+        if (message.type === WorkerSignalType.READY) {
           this.isReady = true;
           this.childProcess?.off('message', readyHandler);
           
@@ -84,7 +84,7 @@ export class Worker {
       const processorCode = this.processor.toString();
       
       this.childProcess.send(
-        { type: 'setProcessor', code: processorCode },
+        { type: WorkerMessageType.SET_PROCESSOR, code: processorCode },
         (error) => {
           if (error) {
             reject(error);
@@ -118,7 +118,7 @@ export class Worker {
 
       // Set up message handler for result
       const messageHandler = (message: WorkerResponse) => {
-        if (message.type === 'result' && message.jobId === job.id) {
+        if (message.type === WorkerResponseType.RESULT && message.jobId === job.id) {
           this.childProcess?.off('message', messageHandler);
           this.currentJobId = null;
 
@@ -156,7 +156,7 @@ export class Worker {
 
       // Send job to child process
       this.childProcess.send({
-        type: 'execute',
+        type: WorkerMessageType.EXECUTE,
         job,
       });
     });

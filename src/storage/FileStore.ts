@@ -1,4 +1,4 @@
-import { StorageInterface, JobData } from '../types.js';
+import { StorageInterface, JobData, JobStatus } from '../types.js';
 import { promises as fs } from 'node:fs';
 import { createWriteStream, WriteStream } from 'node:fs';
 import { dirname } from 'node:path';
@@ -110,9 +110,9 @@ export class FileStore implements StorageInterface {
     let recoveredCount = 0;
 
     for (const [id, job] of this.jobs.entries()) {
-      if (job.status === 'processing') {
+      if (job.status === JobStatus.PROCESSING) {
         // Job was being processed when system crashed
-        job.status = 'pending';
+        job.status = JobStatus.PENDING;
         job.attempts += 1;
         job.nextRunAt = now;
         job.updatedAt = now;
@@ -201,7 +201,7 @@ export class FileStore implements StorageInterface {
     const pendingJobs: JobData[] = [];
     
     for (const job of this.jobs.values()) {
-      if (job.status === 'pending' && job.nextRunAt <= now) {
+      if (job.status === JobStatus.PENDING && job.nextRunAt <= now) {
         pendingJobs.push({ ...job });
       }
     }

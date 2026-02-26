@@ -1,13 +1,28 @@
+import {
+  JobStatus,
+  BackoffStrategyType,
+  StorageType,
+  WorkerMessageType,
+  WorkerResponseType,
+} from './constants.js';
+
 /**
- * Job status enum
+ * Job status enum - Re-exported from constants
  */
-export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export {
+  JobStatus,
+  BackoffStrategyType,
+  StorageType,
+  WorkerMessageType,
+  WorkerResponseType,
+  WorkerSignalType,
+} from './constants.js';
 
 /**
  * Backoff strategy configuration
  */
 export interface BackoffConfig {
-  type: 'exponential' | 'fixed';
+  type: BackoffStrategyType;
   delay: number; // Base delay in milliseconds
 }
 
@@ -37,8 +52,8 @@ export interface JobData {
  * Queue configuration options
  */
 export interface QueueConfig {
-  storage: 'memory' | 'file';
-  filePath?: string; // Required if storage is 'file'
+  storage: StorageType;
+  filePath?: string; // Required if storage is StorageType.FILE
   concurrency: number;
   retry: RetryConfig;
 }
@@ -129,11 +144,11 @@ export type WorkerResult = WorkerSuccess | WorkerFailure;
  */
 export type WorkerMessage = 
   | {
-      type: 'execute';
+      type: WorkerMessageType.EXECUTE;
       job: JobData;
     }
   | {
-      type: 'setProcessor';
+      type: WorkerMessageType.SET_PROCESSOR;
       code: string;
     };
 
@@ -141,7 +156,7 @@ export type WorkerMessage =
  * Response from child worker process
  */
 export interface WorkerResponse {
-  type: 'result';
+  type: WorkerResponseType.RESULT;
   jobId: string;
   result: WorkerResult;
 }

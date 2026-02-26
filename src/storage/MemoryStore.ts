@@ -1,4 +1,4 @@
-import { StorageInterface, JobData } from '../types.js';
+import { StorageInterface, JobData, JobStatus } from '../types.js';
 
 /**
  * In-memory storage implementation
@@ -32,7 +32,7 @@ export class MemoryStore implements StorageInterface {
     const pendingJobs: JobData[] = [];
     
     for (const job of this.jobs.values()) {
-      if (job.status === 'pending' && job.nextRunAt <= now) {
+      if (job.status === JobStatus.PENDING && job.nextRunAt <= now) {
         pendingJobs.push({ ...job });
       }
     }

@@ -1,4 +1,4 @@
-import { WorkerMessage, WorkerResponse } from '../types.js';
+import { WorkerMessage, WorkerResponse, WorkerMessageType, WorkerResponseType, WorkerSignalType } from '../types.js';
 
 /**
  * Child process script that executes jobs in isolation
@@ -12,7 +12,7 @@ let processorFn: ((job: unknown) => Promise<unknown>) | null = null;
  * Handle messages from parent process
  */
 process.on('message', async (message: WorkerMessage) => {
-  if (message.type === 'execute') {
+  if (message.type === WorkerMessageType.EXECUTE) {
     const { job } = message;
     
     try {
@@ -24,7 +24,7 @@ process.on('message', async (message: WorkerMessage) => {
       const result = await processorFn(job);
       
       const response: WorkerResponse = {
-        type: 'result',
+        type: WorkerResponseType.RESULT,
         jobId: job.id,
         result: {
           success: true,
@@ -35,7 +35,7 @@ process.on('message', async (message: WorkerMessage) => {
       process.send!(response);
     } catch (error) {
       const response: WorkerResponse = {
-        type: 'result',
+        type: WorkerResponseType.RESULT,
         jobId: job.id,
         result: {
           success: false,
@@ -45,7 +45,7 @@ process.on('message', async (message: WorkerMessage) => {
       
       process.send!(response);
     }
-  } else if (message.type === 'setProcessor') {
+  } else if (message.type === WorkerMessageType.SET_PROCESSOR) {
     // Receive the processor function code as a string and evaluate it
     // This is sent from the parent during worker initialization
     try {
@@ -74,5 +74,5 @@ process.on('unhandledRejection', (reason) => {
 
 // Signal ready
 if (process.send) {
-  process.send({ type: 'ready' });
+  process.send({ type: WorkerSignalType.READY });
 }

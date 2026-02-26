@@ -1,4 +1,4 @@
-import { Queue } from '../src/index.js';
+import { Queue, StorageType, BackoffStrategyType } from '../src/index.js';
 
 /**
  * Concurrency control demonstration
@@ -9,12 +9,12 @@ async function main() {
   console.log('=== Concurrency Control Example ===\n');
 
   const queue = new Queue({
-    storage: 'memory',
+    storage: StorageType.MEMORY,
     concurrency: 3, // Only 3 jobs run in parallel
     retry: {
       maxAttempts: 2,
       backoff: {
-        type: 'exponential',
+        type: BackoffStrategyType.EXPONENTIAL,
         delay: 500,
       },
     },

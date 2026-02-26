@@ -1,4 +1,4 @@
-import { Queue } from '../src/index.js';
+import { Queue, StorageType, BackoffStrategyType } from '../src/index.js';
 
 /**
  * Restart Recovery Example
@@ -20,13 +20,13 @@ async function main() {
 
   // 1. Create queue with file storage
   const queue = new Queue({
-    storage: 'file',
+    storage: StorageType.FILE,
     filePath: './restart-recovery-jobs.log',
     concurrency: 2,
     retry: {
       maxAttempts: 3,
       backoff: {
-        type: 'exponential',
+        type: BackoffStrategyType.EXPONENTIAL,
         delay: 1000,
       },
     },

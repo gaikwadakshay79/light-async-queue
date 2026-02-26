@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { Backoff } from '../src/queue/Backoff.js';
+import { BackoffStrategyType } from '../src/index.js';
 
 describe('Backoff', () => {
   describe('exponential backoff calculation', () => {
     it('should calculate correct delays for each attempt', () => {
-      const backoff = new Backoff({ type: 'exponential', delay: 1000 });
+      const backoff = new Backoff({ type: BackoffStrategyType.EXPONENTIAL, delay: 1000 });
       
       expect(backoff.calculateDelay(1)).toBe(1000);
       expect(backoff.calculateDelay(2)).toBe(2000);
@@ -16,7 +17,7 @@ describe('Backoff', () => {
 
   describe('fixed backoff calculation', () => {
     it('should return fixed delay for all attempts', () => {
-      const backoff = new Backoff({ type: 'fixed', delay: 5000 });
+      const backoff = new Backoff({ type: BackoffStrategyType.FIXED, delay: 5000 });
       
       expect(backoff.calculateDelay(1)).toBe(5000);
       expect(backoff.calculateDelay(2)).toBe(5000);
@@ -27,7 +28,7 @@ describe('Backoff', () => {
 
   describe('max delay cap', () => {
     it('should cap delay at 1 hour', () => {
-      const backoff = new Backoff({ type: 'exponential', delay: 1000 });
+      const backoff = new Backoff({ type: BackoffStrategyType.EXPONENTIAL, delay: 1000 });
       
       // Attempt 20 would be 1000 * 2^19 = 524,288,000ms (6+ days)
       // Should be capped at 1 hour (3,600,000ms)
@@ -40,7 +41,7 @@ describe('Backoff', () => {
 
   describe('getNextRunAt', () => {
     it('should return future timestamp with correct delay for exponential', () => {
-      const backoff = new Backoff({ type: 'exponential', delay: 1000 });
+      const backoff = new Backoff({ type: BackoffStrategyType.EXPONENTIAL, delay: 1000 });
       const now = Date.now();
       
       const nextRunAt = backoff.getNextRunAt(2);
@@ -50,7 +51,7 @@ describe('Backoff', () => {
     });
 
     it('should return future timestamp with correct delay for fixed', () => {
-      const backoff = new Backoff({ type: 'fixed', delay: 3000 });
+      const backoff = new Backoff({ type: BackoffStrategyType.FIXED, delay: 3000 });
       const now = Date.now();
       
       const nextRunAt = backoff.getNextRunAt(5);
@@ -62,8 +63,8 @@ describe('Backoff', () => {
 
   describe('different base delays', () => {
     it('should respect configured base delay', () => {
-      const backoff500 = new Backoff({ type: 'exponential', delay: 500 });
-      const backoff2000 = new Backoff({ type: 'exponential', delay: 2000 });
+      const backoff500 = new Backoff({ type: BackoffStrategyType.EXPONENTIAL, delay: 500 });
+      const backoff2000 = new Backoff({ type: BackoffStrategyType.EXPONENTIAL, delay: 2000 });
       
       expect(backoff500.calculateDelay(3)).toBe(2000);
       expect(backoff2000.calculateDelay(3)).toBe(8000);

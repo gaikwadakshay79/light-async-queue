@@ -1,4 +1,4 @@
-import { QueueConfig, JobProcessor, StorageInterface, JobData } from '../types.js';
+import { QueueConfig, JobProcessor, StorageInterface, JobData, StorageType, JobStatus } from '../types.js';
 import { Job } from './Job.js';
 import { Backoff } from './Backoff.js';
 import { Scheduler } from './Scheduler.js';
@@ -31,9 +31,9 @@ export class Queue {
     this.isInitialized = false;
 
     // Initialize storage based on config
-    if (config.storage === 'file') {
+    if (config.storage === StorageType.FILE) {
       if (!config.filePath) {
-        throw new Error('filePath is required when storage is "file"');
+        throw new Error(`filePath is required when storage is "${StorageType.FILE}"`);
       }
       this.storage = new FileStore(config.filePath);
     } else {
@@ -260,9 +260,9 @@ export class Queue {
 
     return {
       active: this.activeJobs.size,
-      pending: allJobs.filter(j => j.status === 'pending').length,
+      pending: allJobs.filter(j => j.status === JobStatus.PENDING).length,
       failed: failedJobs.length,
-      completed: allJobs.filter(j => j.status === 'completed').length,
+      completed: allJobs.filter(j => j.status === JobStatus.COMPLETED).length,
     };
   }
 

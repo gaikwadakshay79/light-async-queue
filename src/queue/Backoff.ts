@@ -1,4 +1,4 @@
-import { BackoffConfig } from '../types.js';
+import { BackoffConfig, BackoffStrategyType } from '../types.js';
 
 /**
  * Backoff calculator for retry delays
@@ -18,7 +18,7 @@ export class Backoff {
    * @returns Delay in milliseconds
    */
   calculateDelay(attempt: number): number {
-    if (this.config.type === 'exponential') {
+    if (this.config.type === BackoffStrategyType.EXPONENTIAL) {
       // Exponential backoff: delay * 2^(attempt-1)
       const exponentialDelay = this.config.delay * Math.pow(2, attempt - 1);
       
