@@ -369,6 +369,10 @@ MIT
 
 Contributions welcome! This is a production-ready implementation focused on reliability and simplicity.
 
+## 📦 Publishing
+
+This package uses [npm trusted publishing](https://docs.npmjs.com/generating-provenance-statements) for secure, token-free releases from GitHub Actions. Publishes are automatically triggered when version tags are pushed (e.g., `v1.0.0`). See [TRUSTED_PUBLISHING.md](./TRUSTED_PUBLISHING.md) for detailed setup instructions.
+
 ---
 
 Built with ❤️ for Node.js developers who need reliable job queues without Redis.

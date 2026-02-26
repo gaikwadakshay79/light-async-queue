@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+permissions:
+  id-token: write # Required for OIDC trusted publishing
+  contents: write # Required for GitHub releases
+
 jobs:
   test-npm:
     name: Test NPM Package
@@ -20,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
@@ -67,7 +71,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
@@ -79,8 +83,8 @@ jobs:
 
       - name: Publish to NPM
         run: pnpm publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Uses OIDC trusted publishing - no token needed
+        # Provenance is automatically generated for public packages from public repos
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
