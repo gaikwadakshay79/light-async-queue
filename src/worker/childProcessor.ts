@@ -21,7 +21,24 @@ process.on('message', async (message: WorkerMessage) => {
         throw new Error('Processor function not set');
       }
       
-      const result = await processorFn(job);
+      // Create job object with methods
+      const jobWithMethods = {
+        ...job,
+        updateProgress: async (progress: number) => {
+          if (process.send) {
+            process.send({
+              type: 'progress',
+              jobId: job.id,
+              progress,
+            });
+          }
+        },
+        log: (message: string) => {
+          console.log(`[Job ${job.id}] ${message}`);
+        },
+      };
+      
+      const result = await processorFn(jobWithMethods);
       
       const response: WorkerResponse = {
         type: WorkerResponseType.RESULT,

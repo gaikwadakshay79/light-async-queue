@@ -38,7 +38,7 @@ describe('Job', () => {
     it('should increment attempts and set status to pending for retry', () => {
       const job = new Job({ data: 'test' }, 3);
       const nextRunAt = Date.now() + 5000;
-      job.markFailed(nextRunAt);
+      job.markFailed('Test error', nextRunAt);
       
       expect(job.attempts).toBe(1);
       expect(job.status).toBe('pending');
@@ -47,8 +47,8 @@ describe('Job', () => {
 
     it('should set status to failed after exceeding max attempts', () => {
       const job = new Job({ data: 'test' }, 2);
-      job.markFailed();
-      job.markFailed();
+      job.markFailed('Error 1');
+      job.markFailed('Error 2');
       
       expect(job.attempts).toBe(2);
       expect(job.status).toBe('failed');
@@ -74,8 +74,8 @@ describe('Job', () => {
   describe('reset', () => {
     it('should reset job for reprocessing', () => {
       const job = new Job({ data: 'test' }, 3);
-      job.markFailed();
-      job.markFailed();
+      job.markFailed('Error 1');
+      job.markFailed('Error 2');
       
       expect(job.attempts).toBe(2);
       

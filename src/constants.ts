@@ -3,10 +3,13 @@
  * Represents the different states a job can be in
  */
 export enum JobStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
+  WAITING = 'waiting',      // Waiting to be picked up (new default)
+  DELAYED = 'delayed',      // Scheduled for future execution
+  PENDING = 'pending',      // Ready to be processed
+  PROCESSING = 'processing', // Currently being processed
+  COMPLETED = 'completed',   // Successfully completed
+  FAILED = 'failed',         // Failed after all retries
+  STALLED = 'stalled',      // Job appears stuck/unresponsive
 }
 
 /**
@@ -50,4 +53,21 @@ export enum WorkerResponseType {
  */
 export enum WorkerSignalType {
   READY = 'ready',
+  PROGRESS = 'progress',
+}
+
+/**
+ * Queue Event Type Enum
+ * Events emitted by the queue
+ */
+export enum QueueEventType {
+  WAITING = 'waiting',
+  DELAYED = 'delayed',
+  ACTIVE = 'active',
+  PROGRESS = 'progress',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  STALLED = 'stalled',
+  DRAINED = 'drained',
+  ERROR = 'error',
 }

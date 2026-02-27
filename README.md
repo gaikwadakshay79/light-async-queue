@@ -7,9 +7,11 @@
 [![Node.js Version](https://img.shields.io/node/v/light-async-queue.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 
-A production-ready, Redis-free async job queue for Node.js with TypeScript. Designed for single-node reliability with file-based persistence, worker process isolation, and crash recovery.
+A production-ready, **Redis-free** async job queue for Node.js with TypeScript. A powerful BullMQ alternative designed for single-node reliability with file-based persistence, worker process isolation, and enterprise-grade features.
 
 ## ✨ Features
+
+### Core Features
 
 - **🔄 Reliable Job Processing** - File-based persistence with crash recovery
 - **👷 Worker Isolation** - Jobs execute in separate child processes using `child_process.fork()`
@@ -17,9 +19,21 @@ A production-ready, Redis-free async job queue for Node.js with TypeScript. Desi
 - **💀 Dead Letter Queue** - Failed jobs are preserved and can be reprocessed
 - **⚡ Concurrency Control** - Configurable parallel job execution
 - **🛡️ Graceful Shutdown** - Waits for active jobs before exiting
-- **📊 Queue Statistics** - Monitor active, pending, completed, and failed jobs
 - **🎯 TypeScript First** - Full type safety with no `any` types
 - **🪶 Zero Dependencies** - Uses only Node.js built-in modules
+
+### Advanced Features (BullMQ Compatible)
+
+- **📢 Job Events** - Listen to waiting, active, completed, failed, progress, stalled events
+- **⏰ Delayed Jobs** - Schedule jobs to run after a delay
+- **🔄 Repeating Jobs** - Interval-based and cron-pattern recurring jobs
+- **🎯 Job Priorities** - High-priority jobs run first
+- **📊 Progress Tracking** - Real-time job progress updates
+- **🔗 Job Dependencies** - Jobs can wait for other jobs to complete
+- **⚡ Rate Limiting** - Control job execution rate
+- **🌐 Webhooks** - HTTP callbacks for job events
+- **⏱️ Stalled Job Detection** - Automatically detect and handle stuck jobs
+- **📈 Enhanced Metrics** - Detailed queue statistics by job status
 
 ## 📦 Installation
 
@@ -91,7 +105,11 @@ Create a new queue instance.
 **Config Options:**
 
 ```typescript
-import { StorageType, BackoffStrategyType } from "light-async-queue";
+import {
+  StorageType,
+  BackoffStrategyType,
+  QueueEventType,
+} from "light-async-queue";
 
 interface QueueConfig {
   storage: StorageType;
@@ -104,32 +122,183 @@ interface QueueConfig {
       delay: number; // Base delay in ms
     };
   };
+  rateLimiter?: {
+    max: number; // Max jobs
+    duration: number; // Per duration in ms
+  };
+  webhooks?: Array<{
+    url: string;
+    events: QueueEventType[];
+    headers?: Record<string, string>;
+  }>;
+  stalledInterval?: number; // Check for stalled jobs every X ms (default: 30000)
 }
 ```
 
 ### `queue.process(processor)`
 
-Set the job processor function.
+Set the job processor function with progress tracking support.
 
 ```typescript
-queue.process(async (job: JobData) => {
-  // Process job
-  return result;
+queue.process(async (job) => {
+  // Access job data
+  console.log(job.payload);
+
+  // Report progress
+  await job.updateProgress(50);
+
+  // Log messages
+  job.log("Processing step 1");
+
+  // Return result
+  return { success: true };
 });
 ```
 
-### `queue.add(payload)`
+### `queue.add(payload, options?)`
 
-Add a job to the queue.
+Add a job to the queue with advanced options.
 
 ```typescript
-const jobId = await queue.add({
-  userId: 123,
-  action: "send-email",
+// Simple job
+const jobId = await queue.add({ userId: 123 });
+
+// Job with priority (higher = more important)
+await queue.add({ urgent: true }, { priority: 10 });
+
+// Delayed job (runs after delay)
+await queue.add({ task: "cleanup" }, { delay: 5000 });
+
+// Repeating job (every X milliseconds)
+await queue.add(
+  { type: "heartbeat" },
+  {
+    repeat: {
+      every: 60000, // Every minute
+      limit: 100, // Max 100 repetitions
+    },
+  },
+);
+
+// Cron-style repeating job
+await queue.add(
+  { type: "daily-report" },
+  {
+    repeat: {
+      pattern: "0 0 * * *", // Every day at midnight
+    },
+  },
+);
+
+// Job with dependencies
+const job1 = await queue.add({ step: 1 });
+await queue.add({ step: 2 }, { dependsOn: [job1] });
+
+// Custom job ID
+await queue.add({ data: "test" }, { jobId: "custom-id-123" });
+```
+
+### Queue Events
+
+Listen to job lifecycle events:
+
+```typescript
+import { QueueEventType } from "light-async-queue";
+
+queue.on(QueueEventType.WAITING, (job) => {
+  console.log("Job waiting for dependencies:", job.id);
+});
+
+queue.on(QueueEventType.DELAYED, (job) => {
+  console.log("Job delayed until:", new Date(job.nextRunAt));
+});
+
+queue.on(QueueEventType.ACTIVE, (job) => {
+  console.log("Job started:", job.id);
+});
+
+queue.on(QueueEventType.PROGRESS, (job, progress) => {
+  console.log(`Job ${job.id} progress: ${progress}%`);
+});
+
+queue.on(QueueEventType.COMPLETED, (job, result) => {
+  console.log("Job completed:", job.id, result);
+});
+
+queue.on(QueueEventType.FAILED, (job, error) => {
+  console.error("Job failed:", job.id, error.message);
+});
+
+queue.on(QueueEventType.STALLED, (job) => {
+  console.warn("Job appears stalled:", job.id);
+});
+
+queue.on(QueueEventType.DRAINED, () => {
+  console.log("Queue drained - all jobs processed");
+});
+
+queue.on(QueueEventType.ERROR, (error) => {
+  console.error("Queue error:", error);
 });
 ```
 
-### `queue.getFailedJobs()`
+### Queue Methods
+
+#### `queue.getJob(jobId)`
+
+Get a specific job by ID.
+
+```typescript
+const job = await queue.getJob("job-id-123");
+if (job) {
+  console.log(job.status, job.progress);
+}
+```
+
+#### `queue.removeJob(jobId)`
+
+Remove a specific job (only if not currently active).
+
+```typescript
+const removed = await queue.removeJob("job-id-123");
+```
+
+#### `queue.pause()`
+
+Pause job processing.
+
+```typescript
+queue.pause();
+```
+
+#### `queue.resume()`
+
+Resume job processing.
+
+```typescript
+queue.resume();
+```
+
+#### `queue.drain()`
+
+Wait for all pending jobs to be processed.
+
+```typescript
+await queue.drain();
+console.log("All jobs completed!");
+```
+
+#### `queue.clean(maxAge)`
+
+Remove completed jobs older than maxAge (in milliseconds).
+
+```typescript
+// Clean jobs older than 24 hours
+const cleaned = await queue.clean(24 * 60 * 60 * 1000);
+console.log(`Cleaned ${cleaned} old jobs`);
+```
+
+#### `queue.getFailedJobs()`
 
 Get all jobs in the Dead Letter Queue.
 
@@ -137,7 +306,7 @@ Get all jobs in the Dead Letter Queue.
 const failedJobs = await queue.getFailedJobs();
 ```
 
-### `queue.reprocessFailed(jobId)`
+#### `queue.reprocessFailed(jobId)`
 
 Reprocess a failed job from the DLQ.
 
@@ -145,21 +314,24 @@ Reprocess a failed job from the DLQ.
 await queue.reprocessFailed("job-id-here");
 ```
 
-### `queue.getStats()`
+#### `queue.getStats()`
 
-Get queue statistics.
+Get enhanced queue statistics.
 
 ```typescript
 const stats = await queue.getStats();
 // {
 //   active: 2,
+//   waiting: 1,
+//   delayed: 3,
 //   pending: 5,
 //   completed: 100,
-//   failed: 3
+//   failed: 3,
+//   stalled: 0
 // }
 ```
 
-### `queue.shutdown()`
+#### `queue.shutdown()`
 
 Gracefully shutdown the queue.
 
@@ -263,16 +435,36 @@ The queue handles `SIGINT` and `SIGTERM` signals:
 await queue.shutdown();
 ```
 
-## 📊 Comparison with Bull
+## 📊 Comparison with BullMQ and Bull
 
-| Feature          | light-queue      | Bull                |
-| ---------------- | ---------------- | ------------------- |
-| Redis Required   | ❌ No            | ✅ Yes              |
-| File Persistence | ✅ Yes           | ❌ No               |
-| Worker Isolation | ✅ Child Process | ⚠️ Same Process     |
-| Crash Recovery   | ✅ Built-in      | ⚠️ Requires Redis   |
-| Setup Complexity | 🟢 Low           | 🟡 Medium           |
-| Best For         | Single-node apps | Distributed systems |
+| Feature           | light-async-queue | BullMQ           | Bull            |
+| ----------------- | ----------------- | ---------------- | --------------- |
+| Redis Required    | ❌ No             | ✅ Yes           | ✅ Yes          |
+| File Persistence  | ✅ Yes            | ❌ No            | ❌ No           |
+| Worker Isolation  | ✅ Child Process  | ⚠️ Same Process  | ⚠️ Same Process |
+| Crash Recovery    | ✅ Built-in       | ⚠️ Needs Redis   | ⚠️ Needs Redis  |
+| Job Events        | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Job Priorities    | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Delayed Jobs      | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Repeating Jobs    | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Cron Patterns     | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Job Dependencies  | ✅ Yes            | ✅ Yes           | ❌ No           |
+| Progress Tracking | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Rate Limiting     | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Webhooks          | ✅ Yes            | ❌ No            | ❌ No           |
+| Stalled Detection | ✅ Yes            | ✅ Yes           | ✅ Yes          |
+| Setup Complexity  | 🟢 Low            | 🟡 Medium        | 🟡 Medium       |
+| Dependencies      | 🟢 Zero           | 🔴 Redis + deps  | 🔴 Redis + deps |
+| Best For          | Single-node apps  | Distributed apps | Legacy apps     |
+
+**Why choose light-async-queue?**
+
+- ✅ No Redis infrastructure or maintenance
+- ✅ Built-in crash recovery with file persistence
+- ✅ True process isolation for better fault tolerance
+- ✅ Zero external dependencies
+- ✅ Perfect for edge deployments, serverless, or single-server apps
+- ✅ All BullMQ features without the complexity
 
 ## 🎯 Use Cases
 
@@ -357,9 +549,26 @@ npm run build
 npm run example
 ```
 
-**Test Results:** ✅ 42 tests passing across 4 test suites (powered by Vitest)
+**Test Results:** ✅ 85+ tests passing across 8 test suites (powered by Vitest)
 
 See [TEST_SUITE.md](./TEST_SUITE.md) for detailed test documentation.
+
+## 📚 Examples
+
+Check out the `example/` directory for comprehensive examples:
+
+- **[basic.ts](./example/basic.ts)** - Simple queue setup and job processing
+- **[concurrency.ts](./example/concurrency.ts)** - Concurrent job processing
+- **[crash-recovery.ts](./example/crash-recovery.ts)** - Crash recovery demonstration
+- **[advanced-features.ts](./example/advanced-features.ts)** - All BullMQ-compatible features:
+  - Job events and listeners
+  - Job priorities
+  - Delayed and repeating jobs
+  - Cron patterns
+  - Job dependencies
+  - Progress tracking
+  - Rate limiting
+  - Webhooks
 
 ## 📝 License
 

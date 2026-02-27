@@ -88,9 +88,9 @@ describe('MemoryStore', () => {
   describe('moveToDeadLetter', () => {
     it('should move failed job to DLQ', async () => {
       const job = new Job({ data: 'test' }, 3);
-      job.markFailed();
-      job.markFailed();
-      job.markFailed();
+      job.markFailed('Error 1');
+      job.markFailed('Error 2');
+      job.markFailed('Error 3');
       
       await store.addJob(job.toData());
       await store.moveToDeadLetter(job.toData());

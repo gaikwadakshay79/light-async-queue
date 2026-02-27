@@ -1,5 +1,5 @@
 import { fork, ChildProcess } from 'node:child_process';
-import { JobData, JobProcessor, WorkerResponse, WorkerMessageType, WorkerSignalType, WorkerResponseType } from '../types.js';
+import { JobData, JobProcessor, WorkerResponse, WorkerMessageType, WorkerSignalType, WorkerResponseType, JobWithMethods } from '../types.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -99,7 +99,7 @@ export class Worker {
   /**
    * Execute a job in the child process
    */
-  async execute(job: JobData): Promise<{ success: boolean; result?: unknown; error?: string }> {
+  async execute(job: JobData, jobWithMethods?: JobWithMethods): Promise<{ success: boolean; result?: unknown; error?: string }> {
     if (!this.childProcess || !this.isReady) {
       throw new Error('Worker not initialized');
     }
@@ -116,7 +116,7 @@ export class Worker {
         return;
       }
 
-      // Set up message handler for result
+      // Set up message handler for result and progress
       const messageHandler = (message: WorkerResponse) => {
         if (message.type === WorkerResponseType.RESULT && message.jobId === job.id) {
           this.childProcess?.off('message', messageHandler);
@@ -131,6 +131,13 @@ export class Worker {
             resolve({
               success: false,
               error: message.result.error,
+            });
+          }
+        } else if (message.type === 'progress' && message.jobId === job.id) {
+          // Handle progress updates
+          if (jobWithMethods?.updateProgress) {
+            jobWithMethods.updateProgress(message.progress).catch(err => {
+              console.error('[Worker] Error updating progress:', err);
             });
           }
         }
