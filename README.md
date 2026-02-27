@@ -9,6 +9,10 @@
 
 A production-ready, **Redis-free** async job queue for Node.js with TypeScript. A powerful BullMQ alternative designed for single-node reliability with file-based persistence, worker process isolation, and enterprise-grade features.
 
+## 🎥 Demo Video
+
+[Watch the dashboard demo](./Light-Async-Queue-Dashboard.mp4)
+
 ## ✨ Features
 
 ### Core Features
@@ -20,7 +24,7 @@ A production-ready, **Redis-free** async job queue for Node.js with TypeScript. 
 - **⚡ Concurrency Control** - Configurable parallel job execution
 - **🛡️ Graceful Shutdown** - Waits for active jobs before exiting
 - **🎯 TypeScript First** - Full type safety with no `any` types
-- **🪶 Zero Dependencies** - Uses only Node.js built-in modules
+- **🪶 Minimal Dependencies** - Only 2 runtime dependencies (`cron-parser`, `ws`)
 
 ### Advanced Features (BullMQ Compatible)
 
@@ -34,6 +38,7 @@ A production-ready, **Redis-free** async job queue for Node.js with TypeScript. 
 - **🌐 Webhooks** - HTTP callbacks for job events
 - **⏱️ Stalled Job Detection** - Automatically detect and handle stuck jobs
 - **📈 Enhanced Metrics** - Detailed queue statistics by job status
+- **🖥️ HTML Dashboard** - Real-time web UI for monitoring (Zookeeper-style)
 
 ## 📦 Installation
 
@@ -435,34 +440,101 @@ The queue handles `SIGINT` and `SIGTERM` signals:
 await queue.shutdown();
 ```
 
-## 📊 Comparison with BullMQ and Bull
+## �️ HTML Dashboard - Real-Time Monitoring
 
-| Feature           | light-async-queue | BullMQ           | Bull            |
-| ----------------- | ----------------- | ---------------- | --------------- |
-| Redis Required    | ❌ No             | ✅ Yes           | ✅ Yes          |
-| File Persistence  | ✅ Yes            | ❌ No            | ❌ No           |
-| Worker Isolation  | ✅ Child Process  | ⚠️ Same Process  | ⚠️ Same Process |
-| Crash Recovery    | ✅ Built-in       | ⚠️ Needs Redis   | ⚠️ Needs Redis  |
-| Job Events        | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Job Priorities    | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Delayed Jobs      | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Repeating Jobs    | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Cron Patterns     | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Job Dependencies  | ✅ Yes            | ✅ Yes           | ❌ No           |
-| Progress Tracking | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Rate Limiting     | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Webhooks          | ✅ Yes            | ❌ No            | ❌ No           |
-| Stalled Detection | ✅ Yes            | ✅ Yes           | ✅ Yes          |
-| Setup Complexity  | 🟢 Low            | 🟡 Medium        | 🟡 Medium       |
-| Dependencies      | 🟢 Zero           | 🔴 Redis + deps  | 🔴 Redis + deps |
-| Best For          | Single-node apps  | Distributed apps | Legacy apps     |
+Light Async Queue includes a built-in HTML dashboard for real-time monitoring, similar to Zookeeper. The dashboard provides a modern, responsive web interface for tracking job statuses and managing your queue.
+
+### Quick Start
+
+```typescript
+import { Queue, Dashboard, StorageType } from "light-async-queue";
+
+const queue = new Queue({
+  storage: StorageType.FILE,
+  filePath: "./jobs.log",
+  concurrency: 3,
+  retry: {
+    /* ... */
+  },
+});
+
+// Create and start dashboard
+const dashboard = new Dashboard(queue, {
+  port: 3000,
+  host: "localhost",
+  updateInterval: 1000, // Update every 1 second
+});
+
+await dashboard.start();
+console.log("📊 Dashboard: http://localhost:3000");
+```
+
+### Dashboard Features
+
+- **📊 Real-time Statistics** - Live job counts (active, waiting, delayed, pending, completed, failed, stalled)
+- **📋 Job Tracking** - View active/waiting jobs with progress bars
+- **⚠️ Dead Letter Queue** - Monitor and retry failed jobs from the UI
+- **🔄 WebSocket Updates** - Fast, real-time data synchronization
+- **🎨 Modern UI** - Responsive design with color-coded status badges
+- **📈 Progress Visualization** - Track job completion with visual indicators
+
+### API Endpoints
+
+The dashboard exposes REST API endpoints:
+
+- `GET /` - HTML dashboard interface
+- `GET /api/stats` - Queue statistics (JSON)
+- `GET /api/jobs` - Active and waiting jobs
+- `GET /api/failed-jobs` - Failed jobs in DLQ
+- `POST /api/reprocess-failed` - Retry a failed job
+
+### Example Usage
+
+See the [complete dashboard example](./example/dashboard-example.ts) for a working implementation with:
+
+- Real-time job processing
+- Progress tracking
+- Event handling
+- Failed job retry from UI
+
+```bash
+# Run the example
+npm run build:examples
+node dist/example/dashboard-example.js
+# Open http://localhost:3000
+```
+
+For detailed dashboard documentation, see [Dashboard README](./src/dashboard/README.md).
+
+## �📊 Comparison with BullMQ and Bull
+
+| Feature           | light-async-queue             | BullMQ           | Bull            |
+| ----------------- | ----------------------------- | ---------------- | --------------- |
+| Redis Required    | ❌ No                         | ✅ Yes           | ✅ Yes          |
+| File Persistence  | ✅ Yes                        | ❌ No            | ❌ No           |
+| Worker Isolation  | ✅ Child Process              | ⚠️ Same Process  | ⚠️ Same Process |
+| Crash Recovery    | ✅ Built-in                   | ⚠️ Needs Redis   | ⚠️ Needs Redis  |
+| Job Events        | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Job Priorities    | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Delayed Jobs      | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Repeating Jobs    | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Cron Patterns     | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Job Dependencies  | ✅ Yes                        | ✅ Yes           | ❌ No           |
+| Progress Tracking | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Rate Limiting     | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| Webhooks          | ✅ Yes                        | ❌ No            | ❌ No           |
+| Stalled Detection | ✅ Yes                        | ✅ Yes           | ✅ Yes          |
+| HTML Dashboard    | ✅ Built-in                   | ⚠️ Bull Board    | ⚠️ Bull Board   |
+| Setup Complexity  | 🟢 Low                        | 🟡 Medium        | 🟡 Medium       |
+| Dependencies      | 🟢 Minimal (cron-parser + ws) | 🔴 Redis + deps  | 🔴 Redis + deps |
+| Best For          | Single-node apps              | Distributed apps | Legacy apps     |
 
 **Why choose light-async-queue?**
 
 - ✅ No Redis infrastructure or maintenance
 - ✅ Built-in crash recovery with file persistence
 - ✅ True process isolation for better fault tolerance
-- ✅ Zero external dependencies
+- ✅ Minimal runtime dependencies (`cron-parser`, `ws`)
 - ✅ Perfect for edge deployments, serverless, or single-server apps
 - ✅ All BullMQ features without the complexity
 
@@ -473,7 +545,7 @@ Perfect for:
 - **Single-server applications** that don't need Redis
 - **Background job processing** (emails, reports, etc.)
 - **Reliable task queues** with crash recovery
-- **Development environments** without external dependencies
+- **Development environments** with minimal external dependencies
 - **Edge deployments** where Redis isn't available
 
 ## 🔧 Advanced Example

@@ -1,7 +1,15 @@
-import { fork, ChildProcess } from 'node:child_process';
-import { JobData, JobProcessor, WorkerResponse, WorkerMessageType, WorkerSignalType, WorkerResponseType, JobWithMethods } from '../types.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { fork, ChildProcess } from "node:child_process";
+import {
+  JobData,
+  JobProcessor,
+  WorkerResponse,
+  WorkerMessageType,
+  WorkerSignalType,
+  WorkerResponseType,
+  JobWithMethods,
+} from "../types.js";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,18 +35,18 @@ export class Worker {
    */
   async initialize(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const childProcessorPath = join(__dirname, 'childProcessor.js');
-      
+      const childProcessorPath = join(__dirname, "childProcessor.js");
+
       this.childProcess = fork(childProcessorPath, [], {
-        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+        stdio: ["pipe", "pipe", "pipe", "ipc"],
       });
 
       // Handle ready signal from child
       const readyHandler = (message: { type: string }) => {
         if (message.type === WorkerSignalType.READY) {
           this.isReady = true;
-          this.childProcess?.off('message', readyHandler);
-          
+          this.childProcess?.off("message", readyHandler);
+
           // Send processor function to child
           this.sendProcessorToChild()
             .then(() => resolve())
@@ -46,25 +54,29 @@ export class Worker {
         }
       };
 
-      this.childProcess.on('message', readyHandler);
+      this.childProcess.on("message", readyHandler);
 
       // Handle child process errors
-      this.childProcess.on('error', (error) => {
-        console.error('[Worker] Child process error:', error);
+      this.childProcess.on("error", (error) => {
+        console.error("[Worker] Child process error:", error);
         reject(error);
       });
 
       // Handle unexpected exit during initialization
-      this.childProcess.on('exit', (code, signal) => {
+      this.childProcess.on("exit", (code, signal) => {
         if (!this.isReady) {
-          reject(new Error(`Child process exited during initialization: code=${code}, signal=${signal}`));
+          reject(
+            new Error(
+              `Child process exited during initialization: code=${code}, signal=${signal}`,
+            ),
+          );
         }
       });
 
       // Timeout after 5 seconds
       setTimeout(() => {
         if (!this.isReady) {
-          reject(new Error('Worker initialization timeout'));
+          reject(new Error("Worker initialization timeout"));
         }
       }, 5000);
     });
@@ -76,13 +88,13 @@ export class Worker {
   private async sendProcessorToChild(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.childProcess) {
-        reject(new Error('Child process not initialized'));
+        reject(new Error("Child process not initialized"));
         return;
       }
 
       // Convert processor function to string
       const processorCode = this.processor.toString();
-      
+
       this.childProcess.send(
         { type: WorkerMessageType.SET_PROCESSOR, code: processorCode },
         (error) => {
@@ -91,7 +103,7 @@ export class Worker {
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -99,27 +111,47 @@ export class Worker {
   /**
    * Execute a job in the child process
    */
-  async execute(job: JobData, jobWithMethods?: JobWithMethods): Promise<{ success: boolean; result?: unknown; error?: string }> {
+  async execute(
+    job: JobData,
+    jobWithMethods?: JobWithMethods,
+  ): Promise<{ success: boolean; result?: unknown; error?: string }> {
     if (!this.childProcess || !this.isReady) {
-      throw new Error('Worker not initialized');
+      throw new Error("Worker not initialized");
     }
 
     if (this.currentJobId) {
-      throw new Error('Worker is already processing a job');
+      throw new Error("Worker is already processing a job");
     }
 
     this.currentJobId = job.id;
 
     return new Promise((resolve, reject) => {
       if (!this.childProcess) {
-        reject(new Error('Child process not available'));
+        reject(new Error("Child process not available"));
         return;
       }
 
-      // Set up message handler for result and progress
+      const exitHandler = (code: number | null, signal: string | null) => {
+        if (this.currentJobId === job.id) {
+          this.childProcess?.off("exit", exitHandler);
+          this.childProcess?.off("message", messageHandler);
+          this.currentJobId = null;
+          this.isReady = false;
+
+          resolve({
+            success: false,
+            error: `Worker crashed: code=${code}, signal=${signal}`,
+          });
+        }
+      };
+
       const messageHandler = (message: WorkerResponse) => {
-        if (message.type === WorkerResponseType.RESULT && message.jobId === job.id) {
-          this.childProcess?.off('message', messageHandler);
+        if (
+          message.type === WorkerResponseType.RESULT &&
+          message.jobId === job.id
+        ) {
+          this.childProcess?.off("message", messageHandler);
+          this.childProcess?.off("exit", exitHandler);
           this.currentJobId = null;
 
           if (message.result.success) {
@@ -133,33 +165,18 @@ export class Worker {
               error: message.result.error,
             });
           }
-        } else if (message.type === 'progress' && message.jobId === job.id) {
-          // Handle progress updates
+        } else if (message.type === "progress" && message.jobId === job.id) {
           if (jobWithMethods?.updateProgress) {
-            jobWithMethods.updateProgress(message.progress).catch(err => {
-              console.error('[Worker] Error updating progress:', err);
+            jobWithMethods.updateProgress(message.progress).catch((err) => {
+              console.error("[Worker] Error updating progress:", err);
             });
           }
         }
       };
 
-      this.childProcess.on('message', messageHandler);
+      this.childProcess.on("message", messageHandler);
 
-      // Handle child process crash
-      const exitHandler = (code: number | null, signal: string | null) => {
-        if (this.currentJobId === job.id) {
-          this.childProcess?.off('exit', exitHandler);
-          this.currentJobId = null;
-          this.isReady = false;
-
-          resolve({
-            success: false,
-            error: `Worker crashed: code=${code}, signal=${signal}`,
-          });
-        }
-      };
-
-      this.childProcess.once('exit', exitHandler);
+      this.childProcess.once("exit", exitHandler);
 
       // Send job to child process
       this.childProcess.send({
@@ -187,19 +204,31 @@ export class Worker {
           return;
         }
 
-        this.childProcess.once('exit', () => {
+        this.childProcess.once("exit", () => {
           this.childProcess = null;
           this.isReady = false;
           this.currentJobId = null;
           resolve();
         });
 
-        this.childProcess.kill();
+        try {
+          this.childProcess.kill();
+        } catch (error) {
+          const err = error as NodeJS.ErrnoException;
+          if (err.code === "EPERM" || err.code === "ESRCH") {
+            this.childProcess = null;
+            this.isReady = false;
+            this.currentJobId = null;
+            resolve();
+            return;
+          }
+          throw error;
+        }
 
         // Force kill after 5 seconds
         setTimeout(() => {
           if (this.childProcess) {
-            this.childProcess.kill('SIGKILL');
+            this.childProcess.kill("SIGKILL");
           }
         }, 5000);
       });

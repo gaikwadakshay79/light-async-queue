@@ -58,7 +58,12 @@
     "progress-tracking",
     "priority-queue",
     "delayed-jobs",
-    "repeating-jobs"
+    "repeating-jobs",
+    "dashboard",
+    "monitoring",
+    "websocket",
+    "real-time",
+    "ui"
   ],
   "author": "Akshay Gaikwad <gaikwad.akshay79@gmail.com>",
   "license": "MIT",
@@ -70,9 +75,14 @@
     "url": "https://github.com/gaikwadakshay79/light-async-queue/issues"
   },
   "homepage": "https://github.com/gaikwadakshay79/light-async-queue#readme",
+  "dependencies": {
+    "cron-parser": "^5.5.0",
+    "ws": "^8.15.0"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^20.10.0",
+    "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "@vitest/coverage-v8": "^4.0.18",
@@ -80,8 +90,5 @@
     "globals": "^17.3.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
-  },
-  "dependencies": {
-    "cron-parser": "^5.5.0"
   }
 }
