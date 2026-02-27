@@ -9,13 +9,6 @@
 
 A production-ready, **Redis-free** async job queue for Node.js with TypeScript. A powerful BullMQ alternative designed for single-node reliability with file-based persistence, worker process isolation, and enterprise-grade features.
 
-## 🎥 Demo Video
-
-GitHub README often does not render local `.mp4` files inline. Use the direct raw link:
-
-- [▶️ Watch dashboard demo (streamable MP4)](https://raw.githubusercontent.com/gaikwadakshay79/light-async-queue/main/Light-Async-Queue-Dashboard.mp4)
-- [📁 Repo file link](./Light-Async-Queue-Dashboard.mp4)
-
 ## ✨ Features
 
 ### Core Features
@@ -444,6 +437,9 @@ await queue.shutdown();
 ```
 
 ## �️ HTML Dashboard - Real-Time Monitoring
+
+### 🎥 Demo Video
+https://github.com/user-attachments/assets/a122ba9d-dcf5-4c21-9e92-99c8847ae836
 
 Light Async Queue includes a built-in HTML dashboard for real-time monitoring, similar to Zookeeper. The dashboard provides a modern, responsive web interface for tracking job statuses and managing your queue.
 
