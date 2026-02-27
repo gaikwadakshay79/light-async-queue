@@ -36,7 +36,7 @@ This is a **major release** that transforms light-async-queue into a complete Bu
 #### Repeating Jobs
 
 - **Interval-based repeating** - Execute every X milliseconds
-- **Cron pattern support** - Full 5-field cron expressions (minute hour day month weekday)
+- **Cron pattern support** - Full 5-field cron expressions (minute hour day month weekday) via `cron-parser`
 - Optional repeat limits and date ranges
 - Automatic scheduling of next instance after completion
 

@@ -11,7 +11,10 @@ A production-ready, **Redis-free** async job queue for Node.js with TypeScript. 
 
 ## 🎥 Demo Video
 
-[Watch the dashboard demo](./Light-Async-Queue-Dashboard.mp4)
+GitHub README often does not render local `.mp4` files inline. Use the direct raw link:
+
+- [▶️ Watch dashboard demo (streamable MP4)](https://raw.githubusercontent.com/gaikwadakshay79/light-async-queue/main/Light-Async-Queue-Dashboard.mp4)
+- [📁 Repo file link](./Light-Async-Queue-Dashboard.mp4)
 
 ## ✨ Features
 
