@@ -56,7 +56,15 @@ export class Scheduler extends EventEmitter {
     const now = Date.now();
     const pendingJobs = await this.storage.getPendingJobs(now);
 
-    for (const job of pendingJobs) {
+    // Sort by priority (higher first) then by nextRunAt (earlier first)
+    const sortedJobs = pendingJobs.sort((a, b) => {
+      if (b.priority !== a.priority) {
+        return b.priority - a.priority;
+      }
+      return a.nextRunAt - b.nextRunAt;
+    });
+
+    for (const job of sortedJobs) {
       // Emit job-ready event for each pending job
       this.emit('job-ready', job);
     }

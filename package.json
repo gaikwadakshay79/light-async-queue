@@ -1,7 +1,7 @@
 {
   "name": "light-async-queue",
-  "version": "1.1.0",
-  "description": "Production-ready Redis-free async job queue for single-node reliability",
+  "version": "2.0.0",
+  "description": "Production-ready Redis-free async job queue - BullMQ alternative with file persistence",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -22,11 +22,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json",
+    "build:examples": "tsc --project tsconfig.examples.json",
     "dev": "tsc --watch",
     "lint": "eslint src test --ext .ts",
     "lint:fix": "eslint src test --ext .ts --fix",
-    "example": "pnpm run build && node dist/example/basic.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -46,7 +46,19 @@
     "task-queue",
     "background-jobs",
     "redis-free",
-    "typescript"
+    "typescript",
+    "bullmq",
+    "bull",
+    "cron",
+    "scheduler",
+    "job-dependencies",
+    "rate-limiting",
+    "webhooks",
+    "event-driven",
+    "progress-tracking",
+    "priority-queue",
+    "delayed-jobs",
+    "repeating-jobs"
   ],
   "author": "Akshay Gaikwad <gaikwad.akshay79@gmail.com>",
   "license": "MIT",
@@ -68,5 +80,8 @@
     "globals": "^17.3.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "cron-parser": "^5.5.0"
   }
 }

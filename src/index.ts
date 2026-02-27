@@ -7,6 +7,11 @@
  * - Retry with exponential backoff
  * - Dead letter queue for failed jobs
  * - Graceful shutdown handling
+ * - Job events and progress tracking
+ * - Job priorities and dependencies
+ * - Repeating jobs with cron support
+ * - Rate limiting
+ * - Webhooks
  */
 
 export { Queue } from './queue/Queue.js';
@@ -15,8 +20,14 @@ export type {
   QueueConfig,
   JobData,
   JobProcessor,
+  JobOptions,
   RetryConfig,
   BackoffConfig,
+  RepeatConfig,
+  RateLimiterConfig,
+  WebhookConfig,
+  QueueEvents,
+  JobWithMethods,
 } from './types.js';
 export {
   JobStatus,
@@ -25,4 +36,8 @@ export {
   WorkerMessageType,
   WorkerResponseType,
   WorkerSignalType,
+  QueueEventType,
 } from './types.js';
+export { CronParser } from './utils/CronParser.js';
+export { RateLimiter } from './utils/RateLimiter.js';
+export { WebhookManager } from './utils/WebhookManager.js';

@@ -38,7 +38,11 @@ describe('Worker', () => {
         attempts: 0,
         maxAttempts: 3,
         status: JobStatus.PROCESSING,
+        priority: 0,
+        progress: 0,
         nextRunAt: Date.now(),
+        delay: 0,
+        repeatCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

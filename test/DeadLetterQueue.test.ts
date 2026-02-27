@@ -92,7 +92,7 @@ describe('DeadLetterQueue', () => {
     it('should reset job attempts and status when removing', async () => {
       const job = new Job({ test: 'data' }, 3);
       job.attempts = 3;
-      job.markFailed();
+      job.markFailed('Test error');
       await dlq.add(job);
 
       const removed = await dlq.remove(job.id);
