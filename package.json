@@ -1,6 +1,6 @@
 {
   "name": "light-async-queue",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Production-ready Redis-free async job queue - BullMQ alternative with file persistence",
   "type": "module",
   "main": "./dist/src/index.js",
