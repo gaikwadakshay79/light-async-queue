@@ -67,8 +67,8 @@ export class FileStore implements StorageInterface {
         try {
           const job = JSON.parse(line) as JobData;
           this.jobs.set(job.id, job);
-        } catch (parseError) {
-          console.error('Failed to parse job line:', line, parseError);
+        } catch {
+          // Ignore malformed lines and continue loading valid jobs
         }
       }
     } catch (error) {
@@ -87,8 +87,8 @@ export class FileStore implements StorageInterface {
         try {
           const job = JSON.parse(line) as JobData;
           this.deadLetterJobs.set(job.id, job);
-        } catch (parseError) {
-          console.error('Failed to parse DLQ job line:', line, parseError);
+        } catch {
+          // Ignore malformed lines and continue loading valid DLQ jobs
         }
       }
     } catch (error) {
