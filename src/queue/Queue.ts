@@ -8,18 +8,18 @@ import {
   JobOptions,
   QueueEventType,
   JobWithMethods,
-} from '../types.js';
-import { Job } from './Job.js';
-import { Backoff } from './Backoff.js';
-import { Scheduler } from './Scheduler.js';
-import { Worker } from '../worker/Worker.js';
-import { DeadLetterQueue } from '../dlq/DeadLetterQueue.js';
-import { MemoryStore } from '../storage/MemoryStore.js';
-import { FileStore } from '../storage/FileStore.js';
-import { RateLimiter } from '../utils/RateLimiter.js';
-import { WebhookManager } from '../utils/WebhookManager.js';
-import { CronParser } from '../utils/CronParser.js';
-import { EventEmitter } from 'node:events';
+} from "../types.js";
+import { Job } from "./Job.js";
+import { Backoff } from "./Backoff.js";
+import { Scheduler } from "./Scheduler.js";
+import { Worker } from "../worker/Worker.js";
+import { DeadLetterQueue } from "../dlq/DeadLetterQueue.js";
+import { MemoryStore } from "../storage/MemoryStore.js";
+import { FileStore } from "../storage/FileStore.js";
+import { RateLimiter } from "../utils/RateLimiter.js";
+import { WebhookManager } from "../utils/WebhookManager.js";
+import { CronParser } from "../utils/CronParser.js";
+import { EventEmitter } from "node:events";
 
 /**
  * Main Queue class - orchestrates job processing
@@ -32,6 +32,7 @@ export class Queue extends EventEmitter {
   private backoff: Backoff;
   private processor: JobProcessor | null;
   private workers: Worker[];
+  private reservedWorkers: Set<Worker>;
   private activeJobs: Map<string, Job>;
   private completedJobIds: Set<string>;
   private repeatingJobs: Map<string, NodeJS.Timeout>;
@@ -46,6 +47,7 @@ export class Queue extends EventEmitter {
     this.config = config;
     this.processor = null;
     this.workers = [];
+    this.reservedWorkers = new Set();
     this.activeJobs = new Map();
     this.completedJobIds = new Set();
     this.repeatingJobs = new Map();
@@ -55,7 +57,9 @@ export class Queue extends EventEmitter {
     // Initialize storage based on config
     if (config.storage === StorageType.FILE) {
       if (!config.filePath) {
-        throw new Error(`filePath is required when storage is "${StorageType.FILE}"`);
+        throw new Error(
+          `filePath is required when storage is "${StorageType.FILE}"`,
+        );
       }
       this.storage = new FileStore(config.filePath);
     } else {
@@ -78,9 +82,9 @@ export class Queue extends EventEmitter {
     }
 
     // Set up scheduler event handler
-    this.scheduler.on('job-ready', (jobData: JobData) => {
-      this.handleJobReady(jobData).catch(error => {
-        console.error('[Queue] Error handling job:', error);
+    this.scheduler.on("job-ready", (jobData: JobData) => {
+      this.handleJobReady(jobData).catch((error) => {
+        console.error("[Queue] Error handling job:", error);
         this.emit(QueueEventType.ERROR, error);
       });
     });
@@ -123,7 +127,7 @@ export class Queue extends EventEmitter {
     }
 
     if (this.isShuttingDown) {
-      throw new Error('Queue is shutting down, cannot accept new jobs');
+      throw new Error("Queue is shutting down, cannot accept new jobs");
     }
 
     const job = new Job(payload, this.config.retry.maxAttempts, options);
@@ -170,7 +174,7 @@ export class Queue extends EventEmitter {
     }
 
     if (!this.processor) {
-      console.error('[Queue] No processor function set');
+      console.error("[Queue] No processor function set");
       return;
     }
 
@@ -221,10 +225,13 @@ export class Queue extends EventEmitter {
 
         // Emit completed event
         this.emit(QueueEventType.COMPLETED, job.toData(), result.result);
-        await this.sendWebhook(QueueEventType.COMPLETED, { job: job.toData(), result: result.result });
+        await this.sendWebhook(QueueEventType.COMPLETED, {
+          job: job.toData(),
+          result: result.result,
+        });
       } else {
         // Job failed
-        const error = new Error(result.error || 'Unknown error');
+        const error = new Error(result.error || "Unknown error");
         await this.handleJobFailure(job, error);
       }
     } catch (error) {
@@ -234,6 +241,7 @@ export class Queue extends EventEmitter {
     } finally {
       // Remove from active jobs
       this.activeJobs.delete(job.id);
+      this.reservedWorkers.delete(worker);
     }
   }
 
@@ -254,7 +262,10 @@ export class Queue extends EventEmitter {
 
       // Emit failed event
       this.emit(QueueEventType.FAILED, job.toData(), error);
-      await this.sendWebhook(QueueEventType.FAILED, { job: job.toData(), error });
+      await this.sendWebhook(QueueEventType.FAILED, {
+        job: job.toData(),
+        error,
+      });
     } else {
       // Update job for retry
       await this.storage.updateJob(job.toData());
@@ -267,7 +278,8 @@ export class Queue extends EventEmitter {
   private async getAvailableWorker(): Promise<Worker> {
     // Find an idle worker
     for (const worker of this.workers) {
-      if (!worker.isBusy()) {
+      if (!worker.isBusy() && !this.reservedWorkers.has(worker)) {
+        this.reservedWorkers.add(worker);
         return worker;
       }
     }
@@ -275,12 +287,13 @@ export class Queue extends EventEmitter {
     // Create a new worker if under concurrency limit
     if (this.workers.length < this.config.concurrency) {
       if (!this.processor) {
-        throw new Error('Processor function not set');
+        throw new Error("Processor function not set");
       }
 
       const worker = new Worker(this.processor);
       await worker.initialize();
       this.workers.push(worker);
+      this.reservedWorkers.add(worker);
       return worker;
     }
 
@@ -288,8 +301,9 @@ export class Queue extends EventEmitter {
     return new Promise((resolve) => {
       const checkInterval = setInterval(() => {
         for (const worker of this.workers) {
-          if (!worker.isBusy()) {
+          if (!worker.isBusy() && !this.reservedWorkers.has(worker)) {
             clearInterval(checkInterval);
+            this.reservedWorkers.add(worker);
             resolve(worker);
             return;
           }
@@ -302,14 +316,13 @@ export class Queue extends EventEmitter {
    * Create a job with methods for use in processor
    */
   private createJobWithMethods(job: Job): JobWithMethods {
-    const self = this;
     return {
       ...job.toData(),
       updateProgress: async (progress: number) => {
         job.updateProgress(progress);
-        await self.storage.updateJob(job.toData());
-        self.emit(QueueEventType.PROGRESS, job.toData(), progress);
-        await self.sendWebhook(QueueEventType.PROGRESS, { job: job.toData() });
+        await this.storage.updateJob(job.toData());
+        this.emit(QueueEventType.PROGRESS, job.toData(), progress);
+        await this.sendWebhook(QueueEventType.PROGRESS, { job: job.toData() });
       },
       log: (message: string) => {
         console.log(`[Job ${job.id}] ${message}`);
@@ -335,9 +348,12 @@ export class Queue extends EventEmitter {
    */
   private async checkDependentJobs(completedJobId: string): Promise<void> {
     const allJobs = await this.storage.getAllJobs();
-    
+
     for (const jobData of allJobs) {
-      if (jobData.status === JobStatus.WAITING && jobData.dependsOn?.includes(completedJobId)) {
+      if (
+        jobData.status === JobStatus.WAITING &&
+        jobData.dependsOn?.includes(completedJobId)
+      ) {
         const job = Job.fromData(jobData);
         if (job.areDependenciesSatisfied(this.completedJobIds)) {
           // All dependencies satisfied, move to pending
@@ -365,7 +381,7 @@ export class Queue extends EventEmitter {
 
     // Calculate next run time
     let nextRunAt: number;
-    
+
     if (repeatConfig.pattern) {
       // Cron pattern
       const cronParser = new CronParser(repeatConfig.pattern);
@@ -378,7 +394,10 @@ export class Queue extends EventEmitter {
     }
 
     // Check date constraints
-    if (repeatConfig.startDate && nextRunAt < repeatConfig.startDate.getTime()) {
+    if (
+      repeatConfig.startDate &&
+      nextRunAt < repeatConfig.startDate.getTime()
+    ) {
       nextRunAt = repeatConfig.startDate.getTime();
     }
     if (repeatConfig.endDate && nextRunAt > repeatConfig.endDate.getTime()) {
@@ -391,7 +410,7 @@ export class Queue extends EventEmitter {
       const nextJob = job.createRepeatInstance();
       nextJob.nextRunAt = nextRunAt;
       await this.storage.addJob(nextJob.toData());
-      
+
       // Schedule the next repeat
       await this.scheduleRepeat(nextJob);
     }, delay);
@@ -404,7 +423,7 @@ export class Queue extends EventEmitter {
    */
   private startStalledChecker(): void {
     const interval = this.config.stalledInterval || 30000;
-    
+
     this.stalledCheckInterval = setInterval(async () => {
       await this.checkStalledJobs();
     }, interval);
@@ -424,7 +443,7 @@ export class Queue extends EventEmitter {
           console.warn(`[Queue] Job ${job.id} appears stalled`);
           job.markStalled();
           await this.storage.updateJob(job.toData());
-          
+
           // Emit stalled event
           this.emit(QueueEventType.STALLED, job.toData());
           await this.sendWebhook(QueueEventType.STALLED, { job: job.toData() });
@@ -436,12 +455,15 @@ export class Queue extends EventEmitter {
   /**
    * Send webhook notification
    */
-  private async sendWebhook(event: QueueEventType, data: { job?: JobData; error?: Error; result?: unknown }): Promise<void> {
+  private async sendWebhook(
+    event: QueueEventType,
+    data: { job?: JobData; error?: Error; result?: unknown },
+  ): Promise<void> {
     if (this.webhookManager) {
       try {
         await this.webhookManager.sendEvent(event, data);
       } catch (error) {
-        console.error('[Queue] Webhook error:', error);
+        console.error("[Queue] Webhook error:", error);
       }
     }
   }
@@ -454,6 +476,16 @@ export class Queue extends EventEmitter {
       await this.initialize();
     }
     return this.storage.getJob(jobId);
+  }
+
+  /**
+   * Get all jobs from the queue
+   */
+  async getAllJobs(): Promise<JobData[]> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    return this.storage.getAllJobs();
   }
 
   /**
@@ -477,7 +509,7 @@ export class Queue extends EventEmitter {
     // Remove from storage by updating status
     job.status = JobStatus.FAILED;
     await this.storage.updateJob(job);
-    
+
     return true;
   }
 
@@ -508,17 +540,18 @@ export class Queue extends EventEmitter {
     // Wait for all pending jobs to be processed
     while (true) {
       const allJobs = await this.storage.getAllJobs();
-      const pendingJobs = allJobs.filter(j => 
-        j.status === JobStatus.PENDING || 
-        j.status === JobStatus.WAITING ||
-        j.status === JobStatus.DELAYED
+      const pendingJobs = allJobs.filter(
+        (j) =>
+          j.status === JobStatus.PENDING ||
+          j.status === JobStatus.WAITING ||
+          j.status === JobStatus.DELAYED,
       );
 
       if (pendingJobs.length === 0 && this.activeJobs.size === 0) {
         break;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     this.emit(QueueEventType.DRAINED);
@@ -568,15 +601,22 @@ export class Queue extends EventEmitter {
     }
 
     const job = await this.dlq.remove(jobId);
-    
+
     if (!job) {
       return false;
     }
 
     // Add back to queue
     await this.storage.addJob(job.toData());
-    
+
     return true;
+  }
+
+  /**
+   * Get queue statistics
+   */
+  getConcurrency(): number {
+    return this.config.concurrency;
   }
 
   /**
@@ -600,12 +640,12 @@ export class Queue extends EventEmitter {
 
     return {
       active: this.activeJobs.size,
-      waiting: allJobs.filter(j => j.status === JobStatus.WAITING).length,
-      delayed: allJobs.filter(j => j.status === JobStatus.DELAYED).length,
-      pending: allJobs.filter(j => j.status === JobStatus.PENDING).length,
+      waiting: allJobs.filter((j) => j.status === JobStatus.WAITING).length,
+      delayed: allJobs.filter((j) => j.status === JobStatus.DELAYED).length,
+      pending: allJobs.filter((j) => j.status === JobStatus.PENDING).length,
       failed: failedJobs.length,
-      completed: allJobs.filter(j => j.status === JobStatus.COMPLETED).length,
-      stalled: allJobs.filter(j => j.status === JobStatus.STALLED).length,
+      completed: allJobs.filter((j) => j.status === JobStatus.COMPLETED).length,
+      stalled: allJobs.filter((j) => j.status === JobStatus.STALLED).length,
     };
   }
 
@@ -614,13 +654,13 @@ export class Queue extends EventEmitter {
    */
   private setupGracefulShutdown(): void {
     const shutdown = async () => {
-      console.log('[Queue] Graceful shutdown initiated...');
+      console.log("[Queue] Graceful shutdown initiated...");
       await this.shutdown();
       process.exit(0);
     };
 
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
   }
 
   /**
@@ -648,20 +688,22 @@ export class Queue extends EventEmitter {
     this.repeatingJobs.clear();
 
     // Wait for active jobs to complete
-    console.log(`[Queue] Waiting for ${this.activeJobs.size} active jobs to complete...`);
-    
+    console.log(
+      `[Queue] Waiting for ${this.activeJobs.size} active jobs to complete...`,
+    );
+
     while (this.activeJobs.size > 0) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     // Terminate all workers
-    console.log('[Queue] Terminating workers...');
-    await Promise.all(this.workers.map(worker => worker.terminate()));
+    console.log("[Queue] Terminating workers...");
+    await Promise.all(this.workers.map((worker) => worker.terminate()));
 
     // Close storage
-    console.log('[Queue] Closing storage...');
+    console.log("[Queue] Closing storage...");
     await this.storage.close();
 
-    console.log('[Queue] Shutdown complete');
+    console.log("[Queue] Shutdown complete");
   }
 }

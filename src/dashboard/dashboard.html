@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Light Async Queue - Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        accent: "#8B5CF6",
+                        bgdark: "#0B1220",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] text-slate-200 min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-black/40 backdrop-blur-xl border-r border-slate-800 p-6 flex flex-col">
+            <h1 class="text-xl font-bold flex items-center gap-2 text-primary">
+                ⚡ Light Async Queue
+            </h1>
+
+            <!-- <div class="mt-6 text-xs uppercase tracking-wider text-slate-500">Clusters</div>
+            <div class="mt-3 space-y-2">
+                <div class="bg-primary/10 border border-primary/30 text-primary px-3 py-2 rounded-lg text-sm">
+                    production-cluster</div>
+                <div class="hover:bg-slate-800 px-3 py-2 rounded-lg text-sm">staging-cluster</div>
+            </div> -->
+
+            <div class="mt-8 text-xs uppercase tracking-wider text-slate-500">Navigation</div>
+            <nav class="mt-3 space-y-2 text-sm" id="sideNav">
+                <a href="#overview" data-nav="overview" class="bg-slate-800 px-3 py-2 rounded-lg block">📊 Overview</a>
+                <a href="#queues" data-nav="queues" class="hover:bg-slate-800 px-3 py-2 rounded-lg block">📦 Queues</a>
+                <a href="#workers" data-nav="workers" class="hover:bg-slate-800 px-3 py-2 rounded-lg block">👷
+                    Workers</a>
+                <a href="#recent-jobs" data-nav="jobs" class="hover:bg-slate-800 px-3 py-2 rounded-lg block">📋 Jobs</a>
+                <a href="#dead-letter" data-nav="dlq" class="hover:bg-slate-800 px-3 py-2 rounded-lg block">⚠ Dead
+                    Letter</a>
+                <a href="#settings" data-nav="settings" class="hover:bg-slate-800 px-3 py-2 rounded-lg block">⚙
+                    Settings</a>
+            </nav>
+
+            <div class="mt-auto">
+                <div id="connectionStatus" class="flex items-center gap-2 text-xs text-slate-400">
+                    <div class="w-2 h-2 bg-slate-400 rounded-full"></div>
+                    CONNECTING...
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-8 space-y-8">
+            <section id="overview" class="scroll-mt-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-3xl font-bold">Cluster Overview</h2>
+                        <p class="text-slate-400 text-sm">Real-time distributed job orchestration</p>
+                    </div>
+
+                    <div
+                        class="flex items-center gap-3 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-green-400 text-sm font-semibold">LIVE</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-8 gap-5">
+                <div
+                    class="bg-slate-900/60 backdrop-blur-lg border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Active</p>
+                    <p class="text-2xl/6 font-bold text-primary" id="statActive">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Waiting</p>
+                    <p class="text-2xl/6 font-bold text-amber-400" id="statWaiting">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Delayed</p>
+                    <p class="text-2xl/6 font-bold text-purple-400" id="statDelayed">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Pending</p>
+                    <p class="text-2xl/6 font-bold text-cyan-400" id="statPending">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Completed</p>
+                    <p class="text-2xl/6 font-bold text-green-400" id="statCompleted">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Failed</p>
+                    <p class="text-2xl/6 font-bold text-red-400" id="statFailed">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Stalled</p>
+                    <p class="text-2xl/6 font-bold text-amber-400" id="statStalled">0</p>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl gap-2 flex flex-col">
+                    <p class="text-xs text-slate-500 uppercase">Throughput</p>
+                    <p class="text-2xl/6 font-bold text-cyan-400" id="statThroughput">0/s</p>
+                </div>
+            </section>
+
+            <section id="throughput" class="scroll-mt-6">
+                <h3 class="text-lg font-semibold mb-4">Throughput Trend</h3>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-4">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Last 100 samples (1 sample/sec)</span>
+                        <span id="throughputPeakLabel">Peak: 0.0/s</span>
+                    </div>
+                    <div class="h-28 w-full bg-slate-950/40 border border-slate-800 rounded-lg p-2">
+                        <svg id="throughputSparkline" viewBox="0 0 100 40" preserveAspectRatio="none"
+                            class="w-full h-full">
+                            <g id="throughputSparklineLine"></g>
+                        </svg>
+                    </div>
+                    <div class="text-xs text-slate-400" id="throughputAvgLabel">Rolling avg (last 5s): 0.0/s</div>
+                </div>
+            </section>
+
+            <section id="queues" class="scroll-mt-6">
+                <h3 class="text-lg font-semibold mb-4">Queues</h3>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-5">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-slate-400">Queue</p>
+                            <h4 class="text-lg font-bold text-primary" id="queueName">default-processing</h4>
+                        </div>
+                        <div class="text-xs text-slate-400">Concurrency: <span id="queueConcurrency">3</span></div>
+                    </div>
+
+                    <div class="w-full bg-slate-800 rounded-full h-2">
+                        <div class="bg-gradient-to-r from-primary to-accent h-2 rounded-full" id="activeProgress"
+                            style="width: 0%"></div>
+                    </div>
+                    <div class="text-xs text-slate-400" id="jobsProgress">0 / 0 jobs processed</div>
+
+                    <div class="flex flex-wrap items-center gap-4 text-sm">
+                        <div class="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-lg">Waiting (<span
+                                id="queueWaitingCount">0</span>)</div>
+                        <div class="text-slate-600">→</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-slate-500 mb-2">Workers (green = active, gray = idle)</div>
+                            <div class="w-full pb-1">
+                                <div class="grid gap-0.5 w-full" id="workerStateBoxes"></div>
+                            </div>
+                        </div>
+                        <div class="text-slate-600">→</div>
+                        <div class="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg">Completed (<span
+                                id="queueCompletedCount">0</span>)</div>
+                        <div class="text-slate-600">|</div>
+                        <div class="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg">DLQ (<span
+                                id="queueDlqCount">0</span>)</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="workers" class="scroll-mt-6">
+                <h3 class="text-lg font-semibold mb-4">Worker Load Distribution</h3>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6" id="workerLoadList"></div>
+            </section>
+
+            <section id="recent-jobs" class="scroll-mt-6">
+                <h3 class="text-lg font-semibold mb-4">Recent Jobs</h3>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-800 text-slate-400 uppercase text-xs">
+                            <tr>
+                                <th class="px-6 py-3 text-left">Job ID</th>
+                                <th class="px-6 py-3 text-left">Status</th>
+                                <th class="px-6 py-3 text-left">Attempts</th>
+                                <th class="px-6 py-3 text-left">Progress</th>
+                                <th class="px-6 py-3 text-left">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobsTableBody">
+                            <tr class="border-t border-slate-800">
+                                <td class="px-6 py-4 text-slate-500" colspan="5">Loading jobs...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="dead-letter" class="scroll-mt-6">
+                <h3 class="text-lg font-semibold mb-4">Dead Letter Queue</h3>
+                <div class="bg-slate-900/70 border border-red-500/20 rounded-xl overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-800 text-slate-400 uppercase text-xs">
+                            <tr>
+                                <th class="px-6 py-3 text-left">Job ID</th>
+                                <th class="px-6 py-3 text-left">Error</th>
+                                <th class="px-6 py-3 text-left">Attempts</th>
+                                <th class="px-6 py-3 text-left">Failed At</th>
+                                <th class="px-6 py-3 text-left">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="failedJobsTableBody">
+                            <tr class="border-t border-slate-800">
+                                <td class="px-6 py-4 text-slate-500" colspan="5">No failed jobs</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="settings" class="scroll-mt-6">
+                <h3 class="text-lg font-semibold mb-4">Settings</h3>
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6 grid gap-4 text-sm text-slate-300">
+                    <div>
+                        <div class="text-slate-400 text-xs uppercase mb-1">Update Interval</div>
+                        <div>Real-time updates every 1 second</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400 text-xs uppercase mb-1">Connection</div>
+                        <div id="settingsConnection">WebSocket Connecting</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400 text-xs uppercase mb-1">Storage Type</div>
+                        <div>File-based persistence</div>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="text-center text-slate-500 text-xs pt-2">
+                <div>Light Async Queue • Real-time Dashboard</div>
+                <div id="lastUpdate">Last updated: --</div>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+        const reconnectDelay = 3000;
+        let lastCompleted = 0;
+        let lastCompletedAt = Date.now();
+        const throughputHistory = [];
+
+        const navAnchors = document.querySelectorAll("#sideNav [data-nav]");
+        navAnchors.forEach((anchor) => {
+            anchor.addEventListener("click", () => {
+                navAnchors.forEach((item) => {
+                    item.classList.remove("bg-slate-800");
+                    item.classList.add("hover:bg-slate-800");
+                });
+                anchor.classList.add("bg-slate-800");
+            });
+        });
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = protocol + "//" + window.location.host;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                reconnectAttempts = 0;
+                requestUpdate();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateDashboard(data);
+                } catch (error) {
+                    console.error("Failed to parse message:", error);
+                }
+            };
+
+            ws.onerror = () => {
+                updateConnectionStatus(false);
+            };
+
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                attemptReconnect();
+            };
+        }
+
+        function attemptReconnect() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                setTimeout(connectWebSocket, reconnectDelay);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById("connectionStatus");
+            const settings = document.getElementById("settingsConnection");
+
+            if (connected) {
+                status.innerHTML = '<div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>CONNECTED';
+                status.className = "flex items-center gap-2 text-xs text-green-400";
+                settings.textContent = "WebSocket Active";
+            } else {
+                status.innerHTML = '<div class="w-2 h-2 bg-red-400 rounded-full"></div>DISCONNECTED';
+                status.className = "flex items-center gap-2 text-xs text-red-400";
+                settings.textContent = "WebSocket Disconnected";
+            }
+        }
+
+        function requestUpdate() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: "getUpdate" }));
+            }
+        }
+
+        function updateDashboard(data) {
+            updateStats(data.stats || {});
+            updateQueueFlow(data.stats || {}, data.jobs || [], data.failedJobs || [], data.meta || {});
+            updateWorkerDistribution(data.stats || {}, data.meta || {});
+            updateJobsTable(data.jobs || []);
+            updateFailedJobsTable(data.failedJobs || []);
+            updateTimestamp();
+        }
+
+        function updateStats(stats) {
+            const active = stats.active || 0;
+            const waiting = stats.waiting || 0;
+            const delayed = stats.delayed || 0;
+            const pending = stats.pending || 0;
+            const completed = stats.completed || 0;
+            const failed = stats.failed || 0;
+            const stalled = stats.stalled || 0;
+
+            const now = Date.now();
+            const timeDeltaSeconds = Math.max((now - lastCompletedAt) / 1000, 1);
+            const completedDelta = Math.max(completed - lastCompleted, 0);
+            const throughputNow = completedDelta / timeDeltaSeconds;
+
+            throughputHistory.push(throughputNow);
+            if (throughputHistory.length > 100) {
+                throughputHistory.shift();
+            }
+
+            const rollingWindowSize = Math.min(5, throughputHistory.length);
+            const rollingWindow = throughputHistory.slice(-rollingWindowSize);
+            const rollingAverage = rollingWindow.length > 0
+                ? rollingWindow.reduce((sum, value) => sum + value, 0) / rollingWindow.length
+                : 0;
+
+            document.getElementById("statActive").textContent = String(active);
+            document.getElementById("statWaiting").textContent = String(waiting);
+            document.getElementById("statDelayed").textContent = String(delayed);
+            document.getElementById("statPending").textContent = String(pending);
+            document.getElementById("statCompleted").textContent = String(completed);
+            document.getElementById("statFailed").textContent = String(failed);
+            document.getElementById("statStalled").textContent = String(stalled);
+            document.getElementById("statThroughput").textContent = `${rollingAverage.toFixed(1)}/s`;
+            document.getElementById("throughputAvgLabel").textContent = `Rolling avg (last ${rollingWindowSize}s): ${rollingAverage.toFixed(1)}/s`;
+
+            renderThroughputChart();
+
+            lastCompleted = completed;
+            lastCompletedAt = now;
+        }
+
+        function renderThroughputChart() {
+            const sparklineLine = document.getElementById("throughputSparklineLine");
+            const peakLabel = document.getElementById("throughputPeakLabel");
+
+            if (!sparklineLine || throughputHistory.length === 0) {
+                return;
+            }
+
+            const maxThroughput = Math.max(...throughputHistory, 1);
+            peakLabel.textContent = `Peak: ${maxThroughput.toFixed(1)}/s`;
+
+            const bars = throughputHistory;
+            const barSlot = 100 / bars.length;
+            const barWidth = Math.max(barSlot * 0.85, 0.15);
+
+            sparklineLine.innerHTML = bars
+                .map((value, index) => {
+                    const normalized = Math.min(Math.max(value / maxThroughput, 0), 1);
+                    const height = Math.max(normalized * 36, 0.6);
+                    const x = index * barSlot + (barSlot - barWidth) / 2;
+                    const y = 40 - height;
+                    return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${height.toFixed(2)}" rx="0.3" fill="#22D3EE" />`;
+                })
+                .join("");
+        }
+
+        function updateQueueFlow(stats, jobs, failedJobs, meta) {
+            const active = stats.active || 0;
+            const waiting = stats.waiting || 0;
+            const delayed = stats.delayed || 0;
+            const pending = stats.pending || 0;
+            const completed = stats.completed || 0;
+
+            const total = active + waiting + delayed + pending + completed + (stats.failed || 0) + (stats.stalled || 0);
+            const percentage = total > 0 ? (completed / total) * 100 : 0;
+
+            document.getElementById("activeProgress").style.width = `${percentage}%`;
+            document.getElementById("jobsProgress").textContent = `${completed} / ${total} jobs processed`;
+            document.getElementById("queueWaitingCount").textContent = String(waiting);
+            document.getElementById("queueCompletedCount").textContent = String(completed);
+            document.getElementById("queueDlqCount").textContent = String(failedJobs.length);
+
+            const workerSlots = Math.max(1, Number(meta.concurrency) || Math.max(8, active + 2));
+            document.getElementById("queueConcurrency").textContent = String(workerSlots);
+
+            const workerStateBoxes = document.getElementById("workerStateBoxes");
+            workerStateBoxes.style.gridTemplateColumns = `repeat(${workerSlots}, minmax(0, 1fr))`;
+            workerStateBoxes.innerHTML = Array.from({ length: workerSlots }, (_, index) => {
+                const isProcessing = index < active;
+                return `
+                    <div
+                        title="Worker ${index + 1} - ${isProcessing ? "Processing" : "Idle"}"
+                        class="h-8 rounded-sm ${isProcessing ? "bg-green-400/80" : "bg-slate-600"}">
+                    </div>
+        `;
+            }).join("");
+
+            if (jobs.length > 0) {
+                document.getElementById("queueName").textContent = "default-processing";
+            }
+        }
+
+        function updateWorkerDistribution(stats, meta) {
+            const active = stats.active || 0;
+            const waiting = stats.waiting || 0;
+            const delayed = stats.delayed || 0;
+            const pending = stats.pending || 0;
+            const workerSlots = Math.max(1, Number(meta.concurrency) || Math.max(8, active + pending + 2));
+
+            const workerLoads = Array.from({ length: workerSlots }, (_, index) => {
+                if (index < active) {
+                    return Math.min(100, 70 + ((index * 11) % 28));
+                }
+                if (index < active + Math.min(waiting + delayed, workerSlots - active)) {
+                    return 25 + ((index * 7) % 30);
+                }
+                return 4 + ((index * 5) % 16);
+            });
+
+            const container = document.getElementById("workerLoadList");
+            container.innerHTML = `
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-3">
+                    <span>Total workers shown: ${workerSlots}</span>
+                    <span>Horizontal auto-fit view</span>
+                </div>
+                <div class="w-full pb-1">
+                    <div class="grid items-end gap-0.5 h-28 w-full" style="grid-template-columns: repeat(${workerSlots}, minmax(0, 1fr));">
+                        ${workerLoads
+                    .map((load, index) => {
+                        const isBusy = index < active;
+                        const barColor = isBusy ? "bg-green-400/80" : "bg-slate-500";
+                        return `<div title="Worker ${index + 1} - ${load}%" class="rounded-t ${barColor}" style="height: ${Math.max(load, 4)}%"></div>`;
+                    })
+                    .join("")}
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-3 text-xs text-slate-400">
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-green-400/80"></span>Active workers</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-slate-500"></span>Idle workers</div>
+                </div>
+            `;
+        }
+
+        function statusClass(status) {
+            const map = {
+                waiting: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+                delayed: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+                pending: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+                processing: "text-primary bg-primary/10 border-primary/30",
+                completed: "text-green-400 bg-green-500/10 border-green-500/30",
+                failed: "text-red-400 bg-red-500/10 border-red-500/30",
+                stalled: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            };
+            return map[status] || "text-slate-300 bg-slate-500/10 border-slate-500/30";
+        }
+
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function shortId(jobId) {
+            if (!jobId || jobId.length <= 12) return jobId || "-";
+            return `${jobId.substring(0, 12)}...`;
+        }
+
+        function updateJobsTable(jobs) {
+            const tbody = document.getElementById("jobsTableBody");
+
+            if (!jobs.length) {
+                tbody.innerHTML = `
+          <tr class="border-t border-slate-800">
+            <td class="px-6 py-4 text-slate-500" colspan="5">No active or waiting jobs</td>
+          </tr>
+        `;
+                return;
+            }
+
+            tbody.innerHTML = jobs
+                .map(
+                    (job) => `
+          <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+            <td class="px-6 py-4 text-primary font-mono">${shortId(job.id)}</td>
+            <td class="px-6 py-4">
+              <span class="px-3 py-1 text-xs border rounded-full uppercase ${statusClass(job.status)}">${job.status}</span>
+            </td>
+            <td class="px-6 py-4">${job.attempts} / ${job.maxAttempts}</td>
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-2">
+                <div class="w-20 bg-slate-800 rounded-full h-1.5">
+                  <div class="bg-primary h-1.5 rounded-full" style="width: ${job.progress || 0}%"></div>
+                </div>
+                <span class="text-xs text-slate-400">${job.progress || 0}%</span>
+              </div>
+            </td>
+            <td class="px-6 py-4 text-slate-400 text-xs">${new Date(job.createdAt).toLocaleString()}</td>
+          </tr>
+        `,
+                )
+                .join("");
+        }
+
+        function updateFailedJobsTable(failedJobs) {
+            const tbody = document.getElementById("failedJobsTableBody");
+
+            if (!failedJobs.length) {
+                tbody.innerHTML = `
+          <tr class="border-t border-slate-800">
+            <td class="px-6 py-4 text-slate-500" colspan="5">No failed jobs</td>
+          </tr>
+        `;
+                return;
+            }
+
+            tbody.innerHTML = failedJobs
+                .map(
+                    (job) => `
+          <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+            <td class="px-6 py-4 text-primary font-mono">${shortId(job.id)}</td>
+            <td class="px-6 py-4 text-slate-300 max-w-md truncate" title="${escapeHtml(job.error || "Unknown error")}">${escapeHtml(job.error || "Unknown error")}</td>
+            <td class="px-6 py-4">${job.attempts} / ${job.maxAttempts}</td>
+            <td class="px-6 py-4 text-slate-400 text-xs">${new Date(job.updatedAt).toLocaleString()}</td>
+            <td class="px-6 py-4">
+              <button onclick="reprocessJob('${job.id}')" class="bg-primary/20 border border-primary/40 text-primary px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/30">Retry</button>
+            </td>
+          </tr>
+        `,
+                )
+                .join("");
+        }
+
+        function updateTimestamp() {
+            document.getElementById("lastUpdate").textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        async function reprocessJob(jobId) {
+            try {
+                const response = await fetch("/api/reprocess-failed", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ jobId }),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    requestUpdate();
+                    return;
+                }
+
+                alert("Failed to reprocess job");
+            } catch (error) {
+                console.error("Error reprocessing job:", error);
+                alert("Error reprocessing job");
+            }
+        }
+
+        connectWebSocket();
+        setInterval(requestUpdate, 1000);
+    </script>
+</body>
+
+</html>

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Major Release: BullMQ Feature Parity
 
-This is a **major release** that transforms light-async-queue into a complete BullMQ alternative with enterprise-grade features while maintaining zero dependencies and Redis-free architecture.
+This is a **major release** that transforms light-async-queue into a complete BullMQ alternative with enterprise-grade features while maintaining minimal dependencies (`cron-parser`, `ws`) and Redis-free architecture.
 
 ### ✨ Added - Core Features
 

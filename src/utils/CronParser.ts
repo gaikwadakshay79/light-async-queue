@@ -23,7 +23,9 @@ export class CronParser {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown cron parser error";
-      throw new Error(`Invalid cron pattern: ${message}`);
+      throw new Error(`Invalid cron pattern: ${message}`, {
+        cause: error,
+      });
     }
   }
 }

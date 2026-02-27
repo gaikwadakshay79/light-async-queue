@@ -12,6 +12,7 @@
  * - Repeating jobs with cron support
  * - Rate limiting
  * - Webhooks
+ * - HTML Dashboard for monitoring
  */
 
 export { Queue } from './queue/Queue.js';
@@ -41,3 +42,5 @@ export {
 export { CronParser } from './utils/CronParser.js';
 export { RateLimiter } from './utils/RateLimiter.js';
 export { WebhookManager } from './utils/WebhookManager.js';
+export { Dashboard } from './dashboard/Dashboard.js';
+export type { DashboardConfig } from './dashboard/Dashboard.js';
