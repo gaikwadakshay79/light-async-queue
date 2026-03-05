@@ -1,4 +1,10 @@
-import { WorkerMessage, WorkerResponse, WorkerMessageType, WorkerResponseType, WorkerSignalType } from '../types.js';
+import {
+  WorkerMessage,
+  WorkerResponse,
+  WorkerMessageType,
+  WorkerResponseType,
+  WorkerSignalType,
+} from "../types.js";
 
 /**
  * Child process script that executes jobs in isolation
@@ -11,23 +17,23 @@ let processorFn: ((job: unknown) => Promise<unknown>) | null = null;
 /**
  * Handle messages from parent process
  */
-process.on('message', async (message: WorkerMessage) => {
+process.on("message", async (message: WorkerMessage) => {
   if (message.type === WorkerMessageType.EXECUTE) {
     const { job } = message;
-    
+
     try {
       // Execute the job processor
       if (!processorFn) {
-        throw new Error('Processor function not set');
+        throw new Error("Processor function not set");
       }
-      
+
       // Create job object with methods
       const jobWithMethods = {
         ...job,
         updateProgress: async (progress: number) => {
           if (process.send) {
             process.send({
-              type: 'progress',
+              type: "progress",
               jobId: job.id,
               progress,
             });
@@ -37,9 +43,9 @@ process.on('message', async (message: WorkerMessage) => {
           console.log(`[Job ${job.id}] ${message}`);
         },
       };
-      
+
       const result = await processorFn(jobWithMethods);
-      
+
       const response: WorkerResponse = {
         type: WorkerResponseType.RESULT,
         jobId: job.id,
@@ -48,7 +54,7 @@ process.on('message', async (message: WorkerMessage) => {
           result,
         },
       };
-      
+
       process.send!(response);
     } catch (error) {
       const response: WorkerResponse = {
@@ -59,7 +65,7 @@ process.on('message', async (message: WorkerMessage) => {
           error: error instanceof Error ? error.message : String(error),
         },
       };
-      
+
       process.send!(response);
     }
   } else if (message.type === WorkerMessageType.SET_PROCESSOR) {
@@ -67,10 +73,37 @@ process.on('message', async (message: WorkerMessage) => {
     // This is sent from the parent during worker initialization
     try {
       const processorCode = message.code;
-       
+
       processorFn = eval(`(${processorCode})`);
+
+      if (process.send) {
+        process.send({ type: WorkerSignalType.PROCESSOR_SET });
+      }
     } catch (error) {
-      console.error('Failed to set processor function:', error);
+      console.error("Failed to set processor function:", error);
+      process.exit(1);
+    }
+  } else if (message.type === WorkerMessageType.SET_PROCESSOR_MODULE) {
+    try {
+      const processorModule = (await import(message.modulePath)) as Record<
+        string,
+        unknown
+      >;
+      const candidate = processorModule[message.exportName];
+
+      if (typeof candidate !== "function") {
+        throw new Error(
+          `Export "${message.exportName}" in module "${message.modulePath}" is not a function`,
+        );
+      }
+
+      processorFn = candidate as (job: unknown) => Promise<unknown>;
+
+      if (process.send) {
+        process.send({ type: WorkerSignalType.PROCESSOR_SET });
+      }
+    } catch (error) {
+      console.error("Failed to load processor module:", error);
       process.exit(1);
     }
   }
@@ -79,13 +112,13 @@ process.on('message', async (message: WorkerMessage) => {
 /**
  * Handle uncaught errors
  */
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception in worker:', error);
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception in worker:", error);
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection in worker:', reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection in worker:", reason);
   process.exit(1);
 });
 

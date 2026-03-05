@@ -5,7 +5,7 @@ import {
   WorkerMessageType,
   WorkerResponseType,
   QueueEventType,
-} from './constants.js';
+} from "./constants.js";
 
 /**
  * Job status enum - Re-exported from constants
@@ -18,7 +18,7 @@ export {
   WorkerResponseType,
   WorkerSignalType,
   QueueEventType,
-} from './constants.js';
+} from "./constants.js";
 
 /**
  * Backoff strategy configuration
@@ -32,19 +32,19 @@ export interface BackoffConfig {
  * Repeat job configuration
  */
 export interface RepeatConfig {
-  every?: number;       // Repeat every X milliseconds
-  pattern?: string;     // Cron pattern (e.g., '0 0 * * *')
-  limit?: number;       // Max number of repetitions
-  startDate?: Date;     // When to start repeating
-  endDate?: Date;       // When to stop repeating
+  every?: number; // Repeat every X milliseconds
+  pattern?: string; // Cron pattern (e.g., '0 0 * * *')
+  limit?: number; // Max number of repetitions
+  startDate?: Date; // When to start repeating
+  endDate?: Date; // When to stop repeating
 }
 
 /**
  * Rate limiter configuration
  */
 export interface RateLimiterConfig {
-  max: number;          // Maximum jobs
-  duration: number;     // Per duration in milliseconds
+  max: number; // Maximum jobs
+  duration: number; // Per duration in milliseconds
 }
 
 /**
@@ -52,7 +52,7 @@ export interface RateLimiterConfig {
  */
 export interface WebhookConfig {
   url: string;
-  events: QueueEventType[];  // Which events to send
+  events: QueueEventType[]; // Which events to send
   headers?: Record<string, string>;
 }
 
@@ -68,11 +68,11 @@ export interface RetryConfig {
  * Job options when adding to queue
  */
 export interface JobOptions {
-  priority?: number;         // Job priority (default: 0)
-  delay?: number;           // Delay in milliseconds before execution
-  repeat?: RepeatConfig;    // Repeat configuration
-  dependsOn?: string[];     // Job IDs this job depends on
-  jobId?: string;           // Custom job ID
+  priority?: number; // Job priority (default: 0)
+  delay?: number; // Delay in milliseconds before execution
+  repeat?: RepeatConfig; // Repeat configuration
+  dependsOn?: string[]; // Job IDs this job depends on
+  jobId?: string; // Custom job ID
 }
 
 /**
@@ -84,20 +84,20 @@ export interface JobData {
   attempts: number;
   maxAttempts: number;
   status: JobStatus;
-  priority: number;                    // Job priority (higher = more important)
-  progress: number;                    // Progress percentage (0-100)
-  nextRunAt: number;                   // Unix timestamp in milliseconds
-  delay: number;                       // Delay before execution in milliseconds  
-  repeatConfig?: RepeatConfig;        // Repeat configuration if repeating
-  repeatCount: number;                 // How many times has this repeated
-  dependsOn?: string[];               // Job IDs this job depends on
-  parentJobId?: string;               // Parent job ID for dependencies
-  result?: unknown;                   // Result from job execution
-  error?: string;                     // Error message if failed
-  createdAt: number;                  // Unix timestamp in milliseconds
-  updatedAt: number;                  // Unix timestamp in milliseconds
-  startedAt?: number;                 // When job started processing
-  completedAt?: number;               // When job completed
+  priority: number; // Job priority (higher = more important)
+  progress: number; // Progress percentage (0-100)
+  nextRunAt: number; // Unix timestamp in milliseconds
+  delay: number; // Delay before execution in milliseconds
+  repeatConfig?: RepeatConfig; // Repeat configuration if repeating
+  repeatCount: number; // How many times has this repeated
+  dependsOn?: string[]; // Job IDs this job depends on
+  parentJobId?: string; // Parent job ID for dependencies
+  result?: unknown; // Result from job execution
+  error?: string; // Error message if failed
+  createdAt: number; // Unix timestamp in milliseconds
+  updatedAt: number; // Unix timestamp in milliseconds
+  startedAt?: number; // When job started processing
+  completedAt?: number; // When job completed
 }
 
 /**
@@ -108,15 +108,40 @@ export interface QueueConfig {
   filePath?: string; // Required if storage is StorageType.FILE
   concurrency: number;
   retry: RetryConfig;
-  rateLimiter?: RateLimiterConfig;  // Rate limiting configuration
-  webhooks?: WebhookConfig[];       // Webhook configurations
-  stalledInterval?: number;          // Check for stalled jobs every X ms (default: 30000)
+  rateLimiter?: RateLimiterConfig; // Rate limiting configuration
+  webhooks?: WebhookConfig[]; // Webhook configurations
+  stalledInterval?: number; // Check for stalled jobs every X ms (default: 30000)
+  workerEnv?: NodeJS.ProcessEnv; // Additional env vars merged into worker process env
+  processorExecution?: ProcessorExecutionMode; // Processor execution mode (default: "isolated")
 }
 
 /**
  * Job processor function type
  */
 export type JobProcessor<T = unknown> = (job: JobWithMethods) => Promise<T>;
+
+/**
+ * Processor module configuration
+ * Allows loading processor from a module in the child process
+ */
+export interface ProcessorModuleConfig {
+  modulePath: string;
+  exportName?: string;
+}
+
+/**
+ * Processor execution mode
+ * - isolated: child process isolation via fork (default)
+ * - inline: execute in same process (full closure/import context)
+ */
+export type ProcessorExecutionMode = "isolated" | "inline";
+
+/**
+ * Processor source definition
+ */
+export type ProcessorSource<T = unknown> =
+  | JobProcessor<T>
+  | ProcessorModuleConfig;
 
 /**
  * Queue event listeners
@@ -220,7 +245,7 @@ export type WorkerResult = WorkerSuccess | WorkerFailure;
 /**
  * Message sent to child worker process
  */
-export type WorkerMessage = 
+export type WorkerMessage =
   | {
       type: WorkerMessageType.EXECUTE;
       job: JobData;
@@ -228,19 +253,24 @@ export type WorkerMessage =
   | {
       type: WorkerMessageType.SET_PROCESSOR;
       code: string;
+    }
+  | {
+      type: WorkerMessageType.SET_PROCESSOR_MODULE;
+      modulePath: string;
+      exportName: string;
     };
 
 /**
  * Response from child worker process
  */
-export type WorkerResponse = 
+export type WorkerResponse =
   | {
       type: WorkerResponseType.RESULT;
       jobId: string;
       result: WorkerResult;
     }
   | {
-      type: 'progress';
+      type: "progress";
       jobId: string;
       progress: number;
     };

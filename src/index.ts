@@ -1,6 +1,6 @@
 /**
  * light-queue - Production-ready Redis-free async job queue
- * 
+ *
  * A reliable job queue for single-node applications with:
  * - File-based persistence with crash recovery
  * - Worker process isolation
@@ -15,8 +15,8 @@
  * - HTML Dashboard for monitoring
  */
 
-export { Queue } from './queue/Queue.js';
-export { Job } from './queue/Job.js';
+export { Queue } from "./queue/Queue.js";
+export { Job } from "./queue/Job.js";
 export type {
   QueueConfig,
   JobData,
@@ -29,7 +29,10 @@ export type {
   WebhookConfig,
   QueueEvents,
   JobWithMethods,
-} from './types.js';
+  ProcessorModuleConfig,
+  ProcessorExecutionMode,
+  ProcessorSource,
+} from "./types.js";
 export {
   JobStatus,
   BackoffStrategyType,
@@ -38,9 +41,9 @@ export {
   WorkerResponseType,
   WorkerSignalType,
   QueueEventType,
-} from './types.js';
-export { CronParser } from './utils/CronParser.js';
-export { RateLimiter } from './utils/RateLimiter.js';
-export { WebhookManager } from './utils/WebhookManager.js';
-export { Dashboard } from './dashboard/Dashboard.js';
-export type { DashboardConfig } from './dashboard/Dashboard.js';
+} from "./types.js";
+export { CronParser } from "./utils/CronParser.js";
+export { RateLimiter } from "./utils/RateLimiter.js";
+export { WebhookManager } from "./utils/WebhookManager.js";
+export { Dashboard } from "./dashboard/Dashboard.js";
+export type { DashboardConfig } from "./dashboard/Dashboard.js";

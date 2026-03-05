@@ -8,6 +8,8 @@ import {
   JobOptions,
   QueueEventType,
   JobWithMethods,
+  ProcessorSource,
+  ProcessorModuleConfig,
 } from "../types.js";
 import { Job } from "./Job.js";
 import { Backoff } from "./Backoff.js";
@@ -30,7 +32,7 @@ export class Queue extends EventEmitter {
   private scheduler: Scheduler;
   private dlq: DeadLetterQueue;
   private backoff: Backoff;
-  private processor: JobProcessor | null;
+  private processor: ProcessorSource | null;
   private workers: Worker[];
   private reservedWorkers: Set<Worker>;
   private activeJobs: Map<string, Job>;
@@ -114,8 +116,20 @@ export class Queue extends EventEmitter {
   /**
    * Set the job processor function
    */
-  process(processor: JobProcessor): void {
-    this.processor = processor;
+  process(processor: JobProcessor | ProcessorModuleConfig): void {
+    if (typeof processor === "function") {
+      this.processor = processor;
+      return;
+    }
+
+    if (!processor.modulePath || typeof processor.modulePath !== "string") {
+      throw new Error("processor.modulePath must be a non-empty string");
+    }
+
+    this.processor = {
+      modulePath: processor.modulePath,
+      exportName: processor.exportName,
+    };
   }
 
   /**
@@ -290,7 +304,12 @@ export class Queue extends EventEmitter {
         throw new Error("Processor function not set");
       }
 
-      const worker = new Worker(this.processor);
+      const executionMode = this.config.processorExecution ?? "isolated";
+      const worker = new Worker(
+        this.processor,
+        this.config.workerEnv,
+        executionMode,
+      );
       await worker.initialize();
       this.workers.push(worker);
       this.reservedWorkers.add(worker);

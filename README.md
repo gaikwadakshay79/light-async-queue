@@ -133,6 +133,8 @@ interface QueueConfig {
     headers?: Record<string, string>;
   }>;
   stalledInterval?: number; // Check for stalled jobs every X ms (default: 30000)
+  workerEnv?: Record<string, string | undefined>; // Extra env vars for worker child processes
+  processorExecution?: "isolated" | "inline"; // default: "isolated"
 }
 ```
 
@@ -153,6 +155,67 @@ queue.process(async (job) => {
 
   // Return result
   return { success: true };
+});
+```
+
+You can also load the processor from a module (recommended when your processor depends on imports like API clients):
+
+```typescript
+queue.process({
+  modulePath: "./processors/sendMailProcessor.js",
+  exportName: "sendMailProcessor", // default: "default"
+});
+```
+
+Environment behavior for worker child processes:
+
+- Workers inherit parent `process.env` at fork time.
+- If you need extra/override env values for workers, set `workerEnv` in queue config.
+- Load env vars before workers start (for example at app bootstrap).
+
+```typescript
+const queue = new Queue({
+  storage: StorageType.MEMORY,
+  concurrency: 2,
+  retry: {
+    maxAttempts: 3,
+    backoff: { type: BackoffStrategyType.FIXED, delay: 1000 },
+  },
+  workerEnv: {
+    SENDMAIL_PROVIDER: "sendgrid",
+  },
+});
+
+queue.process({
+  modulePath: "./processors/sendMailProcessor.js",
+  exportName: "sendMailProcessor",
+});
+```
+
+Processor execution modes (BullMQ-style):
+
+- `isolated` (default): processor runs in a forked child process for crash isolation.
+- `inline`: processor runs in the same process, so closures/imports/live context work naturally.
+
+```typescript
+const queue = new Queue({
+  storage: StorageType.MEMORY,
+  concurrency: 2,
+  retry: {
+    maxAttempts: 3,
+    backoff: { type: BackoffStrategyType.FIXED, delay: 1000 },
+  },
+  processorExecution: "inline",
+});
+
+const sharedValue = "same-process-context";
+
+queue.process(async (job) => {
+  return {
+    payload: job.payload,
+    sharedValue,
+    env: process.env.NODE_ENV,
+  };
 });
 ```
 
@@ -439,6 +502,7 @@ await queue.shutdown();
 ## �️ HTML Dashboard - Real-Time Monitoring
 
 ### 🎥 Demo Video
+
 https://github.com/user-attachments/assets/a122ba9d-dcf5-4c21-9e92-99c8847ae836
 
 Light Async Queue includes a built-in HTML dashboard for real-time monitoring, similar to Zookeeper. The dashboard provides a modern, responsive web interface for tracking job statuses and managing your queue.
