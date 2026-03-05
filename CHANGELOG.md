@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-03-05
+
+### Added
+
+- Support for module-based processors via `queue.process({ modulePath, exportName })`
+- Configurable processor execution modes with `processorExecution: "isolated" | "inline"`
+- Inline execution mode for same-process processor behavior with closure/import context
+- Worker environment override support through `workerEnv` in queue config
+- New worker-child handshake signal to confirm processor setup before execution
+
+### Changed
+
+- Worker initialization now sanitizes inherited Node exec arguments for child-process compatibility
+- Child processor loading now supports dynamic module imports in isolated mode
+- Queue worker creation now accepts processor sources (function or module config)
+
+### Documentation
+
+- Updated README with processor module configuration, worker env behavior, and execution mode guidance
+
+### Testing
+
+- Added tests covering module processor configuration and inline execution behavior
+
 ## [2.0.1] - 2026-02-27
 
 ### Fixed
